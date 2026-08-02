@@ -26,6 +26,27 @@ QtObject {
 
     property Vocabulario vocabulario: Vocabulario {}
     property Circulos circulos: Circulos {}
+    property Runas catalogoRunas: Runas {}
+    property Salas catalogoSalas: Salas {}
+
+    // ── lo que llevas ─────────────────────────────────────────────
+    property var runas: []
+
+    function tiene(id) { return runas.indexOf(id) >= 0 }
+
+    //  Los modificadores, todos en un sitio. Están aquí y no repartidos por
+    //  el código para que se pueda leer de un vistazo qué hace cada runa —y
+    //  para que añadir la trece sea una línea.
+    readonly property real multDano: (tiene("yunque") ? 0.6 : 1)
+    readonly property real multCaida: (tiene("aliento") ? 1.15 : 1)
+                                    * (salaActiva === "nido" ? 0.75 : 1)
+    readonly property real multEspera: (tiene("faro") ? 1.15 : 1)
+                                     * (salaActiva === "eco" ? 0.7 : 1)
+    readonly property int porTinta: tiene("tintero") ? 2 : 3
+    readonly property bool rotasEscriben: tiene("ceniza")
+    readonly property bool sinEspejos: tiene("mordaza")
+    readonly property int arranque: tiene("filo") ? 1 : 0
+    readonly property int valorSellada: (salaActiva === "eco" ? 2 : 1)
 
     // ── el círculo ────────────────────────────────────────────────
     //
@@ -75,6 +96,27 @@ QtObject {
     //  onda barre la pantalla. Lo levanta y lo baja la vista.
     property bool lento: false
 
+    // ── la ruta ───────────────────────────────────────────────────
+    //
+    //  Entre capa y capa el juego SE PARA y hay que elegir por dónde bajas.
+    //  Es la única pausa de la partida, y es a propósito: todo lo demás pasa
+    //  con las manos en el teclado, así que el momento de pensar tiene que
+    //  distinguirse del momento de teclear.
+    property bool enRuta: false
+    property string pasoRuta: ""          // "salas" | "runas"
+    property var ofertaSalas: []
+    property var ofertaRunas: []
+    //  Cuál te tocó de las ofrecidas viene maldita: te la llevas rompiéndote
+    //  una tecla. Es el índice dentro de `ofertaRunas`, o -1.
+    property int maldita: -1
+
+    //  La sala que manda en la capa que se está jugando.
+    property string salaActiva: ""
+    //  El Ancla perdona la primera fuga de cada capa.
+    property bool perdonUsado: false
+    //  La última letra sellada, para la Cadena.
+    property string ultimaSellada: ""
+
     // ── la tinta ──────────────────────────────────────────────────
     //
     //  Lo que limpia una tecla rota, y lo único que las limpia: en la fase 1
@@ -107,11 +149,12 @@ QtObject {
     //  querer que una partida de fase 1 dure sobre un minuto: lo justo para
     //  ver si esto se siente bien.
     readonly property int esperaMs: Math.round(
-        Math.max(1100, 2600 - capa * 220) * clase.ritmo)
+        Math.max(1100, 2600 - capa * 220) * clase.ritmo * multEspera)
     //  En sobrecarga cae todo un tercio más rápido: la recompensa por ir fino
     //  tiene que dar miedo, o no es una recompensa, es un regalo.
     readonly property int caidaMs: Math.round(
-        Math.max(4200, 9000 - capa * 600) * (sobrecarga ? 0.68 : 1))
+        Math.max(4200, 9000 - capa * 600) * (sobrecarga ? 0.68 : 1)
+        * multCaida)
 
     function empezar(id) {
         if (id !== undefined && id.length > 0)
@@ -130,6 +173,15 @@ QtObject {
         fallos = 0
         tinta = clase.tinta
         _haciaTinta = 0
+        runas = []
+        salaActiva = ""
+        perdonUsado = false
+        ultimaSellada = ""
+        enRuta = false
+        pasoRuta = ""
+        ofertaSalas = []
+        ofertaRunas = []
+        maldita = -1
         pausada = false
         jugando = true
 
@@ -151,6 +203,8 @@ QtObject {
         jugando = false
         pausada = false
         lento = false
+        enRuta = false
+        pasoRuta = ""
         palabras.clear()
         fugadas.clear()
         objetivo = -1
@@ -196,7 +250,7 @@ QtObject {
     }
 
     function brotar() {
-        if (!jugando || pausada)
+        if (!jugando || pausada || enRuta)
             return
 
         const lista = _listaDeCapa()
@@ -208,7 +262,8 @@ QtObject {
         //  El espejo: se enseña del revés y se teclea tal como se ve. El reto
         //  es que la palabra deja de leerse sola — hay que MIRARLA. A partir
         //  de la segunda capa.
-        const tipo = (capa >= 2 && Math.random() < 0.25) ? "espejo" : "llana"
+        const tipo = (!sinEspejos && capa >= 2 && Math.random() < 0.25)
+            ? "espejo" : "llana"
         let muestra = tipo === "espejo"
             ? texto.split("").reverse().join("") : texto
 
@@ -233,7 +288,7 @@ QtObject {
             muestra: muestra,
             esperado: esperado,
             tipo: tipo,
-            escrito: 0,
+            escrito: Math.min(arranque, esperado.length - 1),
             carril: _carrilLibre()
         })
     }
@@ -320,9 +375,15 @@ QtObject {
         const letra = vocabulario.llana(bruta.toLowerCase())
 
         //  Una tecla corrompida no hace NADA. Ni acierta ni falla: está rota,
-        //  y notarlo en los dedos es el castigo.
-        if (estaCorrupta(letra))
-            return false
+        //  y notarlo en los dedos es el castigo. Con la runa Ceniza vuelve a
+        //  escribir, pero te corta la racha cada vez: la ruina deja de ser un
+        //  muro y pasa a ser un peaje, que es una manera muy distinta de
+        //  jugar con el mismo teclado roto.
+        if (estaCorrupta(letra)) {
+            if (!rotasEscriben)
+                return false
+            combo = 0
+        }
 
         if (objetivo >= 0) {
             const d = _buscar(objetivo)
@@ -398,10 +459,25 @@ QtObject {
     function _sellar(pid, enFuga) {
         //  En sobrecarga cada palabra cuenta por dos: es lo que hace que
         //  merezca la pena arriesgarse a mantener la racha.
-        selladas += sobrecarga ? 2 : 1
+        const d = _buscar(pid)
+        const largoPalabra = d ? d.modelo.get(d.i).esperado.length : 0
+        const inicial = d ? d.modelo.get(d.i).esperado[0] : ""
+
+        selladas += (sobrecarga ? 2 : 1) * valorSellada
         combo += 1
+        //  La Cadena: si enlazas por la última letra que sellaste, racha de
+        //  más. Encadenar cinco seguidas es lo más bonito que se puede hacer
+        //  aquí, y la runa existe para que compense buscarlo.
+        if (tiene("cadena") && inicial.length > 0 && inicial === ultimaSellada)
+            combo += 2
+        ultimaSellada = largoPalabra > 0
+            ? d.modelo.get(d.i).esperado[largoPalabra - 1] : ""
         if (combo > mejorCombo)
             mejorCombo = combo
+
+        //  La Sanguijuela: lo largo cura.
+        if (tiene("sanguijuela") && largoPalabra >= 7)
+            fisura = Math.max(0, fisura - 0.05)
 
         if (enFuga) {
             //  Cazar lo que se te escapó cierra grieta Y da tinta entera: es
@@ -416,7 +492,7 @@ QtObject {
 
         //  Y la tinta que se gana sellando, a cuentagotas.
         _haciaTinta += 1
-        if (_haciaTinta >= selladasPorTinta) {
+        if (_haciaTinta >= porTinta) {
             _haciaTinta = 0
             tinta += 1
         }
@@ -426,8 +502,10 @@ QtObject {
         //  instante que celebrar.
         const antes = capa
         capa = 1 + Math.floor(selladas / 5)
-        if (capa > antes)
+        if (capa > antes) {
             capaCerrada(capa)
+            _abrirRuta()
+        }
 
         _quitar(pid)
     }
@@ -468,7 +546,13 @@ QtObject {
         combo = 0
         //  Abrir la grieta es el único daño que existe. Cinco fugas y se acabó
         //  — salvo que vayas a buscarlas, que es de lo que va esto.
-        fisura = Math.min(1, fisura + clase.dano)
+        if (tiene("ancla") && !perdonUsado) {
+            //  El Ancla perdona la primera de cada capa: la fuga ocurre —la
+            //  palabra sale al escritorio igual— pero no abre la grieta.
+            perdonUsado = true
+        } else {
+            fisura = Math.min(1, fisura + clase.dano * multDano)
+        }
         escapada(pid)
         d.modelo.remove(d.i)
         if (objetivo === pid)
@@ -487,7 +571,7 @@ QtObject {
     property Timer _brote: Timer {
         interval: sim.esperaMs
         repeat: true
-        running: sim.jugando && !sim.pausada
+        running: sim.jugando && !sim.pausada && !sim.enRuta
         onTriggered: sim.brotar()
     }
 
@@ -495,4 +579,93 @@ QtObject {
     //  tecla rota se queda rota hasta que gastes tinta, que es lo que hace que
     //  un fallo pese durante el resto de la partida en vez de durante ocho
     //  segundos.
+
+    // ── la ruta ───────────────────────────────────────────────────
+
+    function _abrirRuta() {
+        //  Lo que la sala anterior prestaba se acaba aquí: cada sala manda
+        //  durante UNA capa, no durante el resto de la partida.
+        salaActiva = ""
+        perdonUsado = false
+        if (tiene("semilla"))
+            tinta += 1
+        if (tiene("eco"))
+            tinta += 2
+
+        ofertaSalas = catalogoSalas.ofrecer()
+        pasoRuta = "salas"
+        enRuta = true
+    }
+
+    function _ofrecerRunas(cuantas) {
+        const rs = catalogoRunas.ofrecer(runas, cuantas)
+        ofertaRunas = rs
+        //  Una de las ofrecidas puede venir maldita: te la llevas rompiéndote
+        //  una tecla. La decisión —¿vale esta runa una tecla?— es de las
+        //  mejores que puede dar el juego, así que no sale siempre: si
+        //  saliera, dejaría de ser una decisión y sería un impuesto.
+        maldita = (rs.length > 1 && Math.random() < 0.45)
+            ? Math.floor(Math.random() * rs.length) : -1
+        pasoRuta = "runas"
+    }
+
+    function elegirSala(i) {
+        if (!enRuta || pasoRuta !== "salas")
+            return
+        if (i < 0 || i >= ofertaSalas.length)
+            return
+
+        const sala = ofertaSalas[i]
+        salaActiva = sala.id
+
+        if (sala.id === "fragua") {
+            //  Se lleva TODAS por delante. Media medida aquí no vale: la
+            //  fragua compite con una runa, y «te limpio una» no compra a
+            //  nadie.
+            corruptas = ({})
+            _cerrarRuta()
+        } else if (sala.id === "mercado") {
+            _ofrecerRunas(3)
+        } else if (sala.id === "nido") {
+            //  El nido paga al ENTRAR y cobra durante toda la capa: cae más
+            //  deprisa. Se sabe lo que se compra antes de comprarlo.
+            tinta += 3
+            _ofrecerRunas(2)
+        } else {
+            _cerrarRuta()
+        }
+    }
+
+    function elegirRuna(i) {
+        if (!enRuta || pasoRuta !== "runas")
+            return
+        if (i < 0 || i >= ofertaRunas.length)
+            return
+
+        runas = runas.concat([ofertaRunas[i].id])
+
+        if (i === maldita) {
+            //  El precio de la maldita: una tecla de tu círculo, al azar y de
+            //  las que todavía te funcionan.
+            const sanas = []
+            for (let k = 0; k < circulo.length; ++k)
+                if (!estaCorrupta(circulo[k]))
+                    sanas.push(circulo[k])
+            if (sanas.length)
+                _corromper(sanas[Math.floor(Math.random() * sanas.length)])
+        }
+
+        _cerrarRuta()
+    }
+
+    function _cerrarRuta() {
+        ofertaSalas = []
+        ofertaRunas = []
+        maldita = -1
+        pasoRuta = ""
+        enRuta = false
+        //  Con la capa nueva vacía, que empiece a salir algo enseguida y no
+        //  al ritmo del temporizador.
+        brotar()
+    }
 }

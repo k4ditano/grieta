@@ -34,6 +34,7 @@ K4.Aparicion {
 
     readonly property var clases: sim.circulos.lista
     property int elegida: 0
+    property int cursorRuta: 0
 
     // ── el teclado de verdad ──────────────────────────────────────
     //
@@ -81,6 +82,31 @@ K4.Aparicion {
             if (ev.key === Qt.Key_Tab || ev.key === Qt.Key_Backtab) {
                 if (vista.sim.jugando && !vista.sim.pausada)
                     vista.sim.limpiar()
+                ev.accepted = true
+                return
+            }
+
+            //  La ruta se lleva las teclas antes que nadie: mientras se elige
+            //  no se está tecleando palabras, y una letra suelta aquí no debe
+            //  romperte una tecla por accidente.
+            if (vista.sim.enRuta) {
+                const n = vista.sim.pasoRuta === "salas"
+                    ? vista.sim.ofertaSalas.length : vista.sim.ofertaRunas.length
+                if (ev.key === Qt.Key_Left || ev.key === Qt.Key_Up) {
+                    vista.cursorRuta = (vista.cursorRuta + n - 1) % n
+                } else if (ev.key === Qt.Key_Right || ev.key === Qt.Key_Down) {
+                    vista.cursorRuta = (vista.cursorRuta + 1) % n
+                } else if (ev.key >= Qt.Key_1 && ev.key < Qt.Key_1 + n) {
+                    vista.cursorRuta = ev.key - Qt.Key_1
+                } else if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter
+                           || ev.key === Qt.Key_Space) {
+                    const i = vista.cursorRuta
+                    vista.cursorRuta = 0
+                    if (vista.sim.pasoRuta === "salas")
+                        vista.sim.elegirSala(i)
+                    else
+                        vista.sim.elegirRuna(i)
+                }
                 ev.accepted = true
                 return
             }
@@ -187,7 +213,7 @@ K4.Aparicion {
                 //  la onda cruza la pantalla. A esta escala, congelar medio
                 //  segundo se lee como cámara lenta y cuesta una propiedad.
                 detenida: vista.sim.pausada || vista.sim.lento
-                    || !vista.sim.jugando
+                    || vista.sim.enRuta || !vista.sim.jugando
                 esObjetivo: vista.sim.objetivo === model.pid
 
                 //  El carril lo reparte la simulación, que es quien sabe qué
@@ -329,11 +355,34 @@ K4.Aparicion {
         y: sitio ? sitio.y - 11 : 0
     }
 
+    // ── la ruta ───────────────────────────────────────────────────
+    //
+    //  Tapa la isla entera mientras se elige: es la única pausa del juego y
+    //  tiene que verse como tal. El fondo casi opaco deja intuir las palabras
+    //  detrás, congeladas, esperando.
+    Rectangle {
+        anchors.fill: parent
+        visible: vista.sim.enRuta
+        color: Qt.rgba(0, 0, 0, 0.9)
+
+        Ruta {
+            anchors.fill: parent
+            opciones: vista.sim.pasoRuta === "salas"
+                ? vista.sim.ofertaSalas : vista.sim.ofertaRunas
+            elegida: vista.cursorRuta
+            maldita: vista.sim.pasoRuta === "runas" ? vista.sim.maldita : -1
+            titulo: vista.sim.pasoRuta === "salas"
+                ? K4.Idioma.f("Capa %1 · ¿por dónde bajas?", vista.sim.capa)
+                : K4.Idioma.t("¿Qué te llevas?")
+            pie: K4.Idioma.t("← → para elegir · Enter para bajar")
+        }
+    }
+
     // ── los carteles ──────────────────────────────────────────────
     Column {
         anchors.centerIn: parent
         spacing: 8
-        visible: !vista.sim.jugando || vista.sim.pausada
+        visible: (!vista.sim.jugando || vista.sim.pausada) && !vista.sim.enRuta
 
         K4.Etiqueta {
             anchors.horizontalCenter: parent.horizontalCenter
