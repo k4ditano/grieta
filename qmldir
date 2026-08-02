@@ -1,0 +1,11 @@
+#  Los tipos de esta carpeta, para que se resuelvan también
+#  cargando el plugin por URL (esquema qs:).
+
+GrietaPlugin 1.0 GrietaPlugin.qml
+GrietaVista 1.0 GrietaVista.qml
+Simulacion 1.0 Simulacion.qml
+Vocabulario 1.0 Vocabulario.qml
+Fisura 1.0 Fisura.qml
+Palabra 1.0 Palabra.qml
+Chispas 1.0 Chispas.qml
+Teclado 1.0 Teclado.qml
