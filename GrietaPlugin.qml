@@ -304,13 +304,21 @@ K4.Plugin {
     //  tiene por qué pesar por dos «tics».
     property bool conSonido: true
 
+    //  `delSistema` es un método DE INSTANCIA, así que se llama sobre el
+    //  propio objeto y no sobre el tipo. El ejemplo de la cabecera de
+    //  api/K4/Sonido.qml pone `K4.Sonido.delSistema(...)` y eso no puede
+    //  funcionar: da «Property 'delSistema' of object Sonido is not a
+    //  function» y te deja sin sonido sin romper nada más, que es la clase de
+    //  fallo que tarda en verse.
     property var golpe: K4.Sonido {
-        fuente: K4.Sonido.delSistema("message")
+        id: golpeSonido
+        fuente: golpeSonido.delSistema("message")
         volumen: 0.25
     }
 
     property var yerro: K4.Sonido {
-        fuente: K4.Sonido.delSistema("dialog-error")
+        id: yerroSonido
+        fuente: yerroSonido.delSistema("dialog-error")
         volumen: 0.2
     }
 

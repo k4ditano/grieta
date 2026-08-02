@@ -163,6 +163,52 @@ QtObject {
     //  onda barre la pantalla. Lo levanta y lo baja la vista.
     property bool lento: false
 
+    // ── que no haya dos a la misma altura ─────────────────────────
+    //
+    //  No es cosmética. Todo el juego se apoya en que la de más abajo es la
+    //  que más corre: es el criterio con el que la letra elige a quién
+    //  enganchar y es lo que lees para decidir a por cuál vas. Dos palabras a
+    //  la misma altura rompen las dos cosas a la vez.
+    //
+    //  Se garantiza con dos reglas, y con las dos basta:
+    //
+    //    1. Nadie nace hasta que la anterior ha bajado un hueco mínimo.
+    //    2. Nadie nace MÁS RÁPIDO que la que tiene debajo — así el hueco solo
+    //       puede crecer, nunca cerrarse. Sin esto, una palabra nacida en
+    //       sobrecarga (un tercio más rápida) alcanzaba a la de delante.
+    //
+    //  El reloj cuenta tiempo JUGADO y no de pared: con el de pared, una
+    //  pausa de dos minutos hacía creer que todo había bajado ya, y al volver
+    //  brotaba encima de lo que había.
+    readonly property real hueco: 0.17
+    property real reloj: 0
+
+    property Timer _latido: Timer {
+        interval: 100
+        repeat: true
+        running: sim.jugando && !sim.pausada && !sim.enRuta && !sim.lento
+        onTriggered: sim.reloj += interval
+    }
+
+    //  Lo que le queda a la más nueva por recorrer, de 0 a 1.
+    function _avanceDeLaUltima() {
+        if (palabras.count === 0)
+            return 1
+        const u = palabras.get(palabras.count - 1)
+        return Math.min(1, (reloj - u.nacido) / Math.max(1, u.duracion))
+    }
+
+    function _hayHueco() {
+        return _avanceDeLaUltima() >= hueco
+    }
+
+    //  Ni más rápida que la que tiene delante.
+    function _duracionSegura() {
+        if (palabras.count === 0)
+            return caidaMs
+        return Math.max(caidaMs, palabras.get(palabras.count - 1).duracion)
+    }
+
     // ── la ruta ───────────────────────────────────────────────────
     //
     //  Entre capa y capa el juego SE PARA y hay que elegir por dónde bajas.
@@ -287,6 +333,7 @@ QtObject {
         maldita = -1
         pausada = false
         jugando = true
+        reloj = 0
 
         //  La Ceniza empieza con teclas ya rotas. Se sortean de su círculo,
         //  así que cada partida suya duele en otro sitio.
@@ -368,12 +415,23 @@ QtObject {
     function brotar() {
         if (!jugando || pausada || enRuta)
             return
+        //  Todavía no: la anterior no ha bajado lo suficiente. El temporizador
+        //  volverá a intentarlo, así que esto retrasa, no se salta nada.
+        if (!_hayHueco())
+            return
 
         const lista = _listaDeCapa()
         if (!lista.length)
             return
 
-        const texto = lista[Math.floor(azar() * lista.length)]
+        let texto = lista[Math.floor(azar() * lista.length)]
+
+        //  Mientras tu némesis esté fuera, esa palabra no brota normal: se
+        //  vieron dos «río» a la vez, una con su borde rojo y otra sin él, y
+        //  dejaba de entenderse cuál era la tuya. Un intento y a otra cosa:
+        //  insistir aquí sería sesgar el sorteo y romper la grieta del día.
+        if (nemesisFuera && texto === nemesis && lista.length > 1)
+            texto = lista[Math.floor(azar() * lista.length)]
 
         //  El espejo: se enseña del revés y se teclea tal como se ve. El reto
         //  es que la palabra deja de leerse sola — hay que MIRARLA. A partir
@@ -408,7 +466,13 @@ QtObject {
             esperado: esperado,
             tipo: tipo,
             escrito: Math.min(arranque, esperado.length - 1),
-            carril: _carrilLibre()
+            carril: _carrilLibre(),
+            nacido: reloj,
+            //  Congelada al nacer. Antes la vista leía `caidaMs` en un enlace
+            //  vivo, así que al entrar en sobrecarga —o al llegar un
+            //  guardián— cambiaba la duración de las animaciones EN VUELO:
+            //  las palabras pegaban un salto y podían quedar emparejadas.
+            duracion: _duracionSegura()
         })
     }
 
@@ -758,7 +822,14 @@ QtObject {
         interval: sim.esperaMs
         repeat: true
         running: sim.jugando && !sim.pausada && !sim.enRuta
-        onTriggered: sim.brotar()
+        onTriggered: {
+            //  El némesis tiene preferencia sobre un brote nuevo: si está
+            //  pendiente de volver, que vuelva él.
+            if (sim.nemesis.length && !sim.nemesisFuera)
+                sim._soltarNemesis()
+            else
+                sim.brotar()
+        }
     }
 
     //  Aquí vivía el timer que curaba las teclas solas. Se ha ido: ahora una
@@ -857,11 +928,18 @@ QtObject {
         for (let j = 0; j < muestra.length; ++j)
             esperado += vocabulario.llana(muestra[j].toLowerCase())
 
+        //  También espera su hueco: salía a la vez que el primer brote de la
+        //  capa y los dos bajaban en paralelo, clavados a la misma altura
+        //  toda la caída.
+        if (!_hayHueco())
+            return
+
         nemesisFuera = true
         palabras.append({
             pid: _siguienteId++, texto: nemesis, muestra: muestra,
             esperado: esperado, tipo: "nemesis", escrito: 0,
-            carril: _carrilLibre()
+            carril: _carrilLibre(),
+            nacido: reloj, duracion: _duracionSegura()
         })
     }
 
@@ -904,6 +982,7 @@ QtObject {
             proximoGuardian = capa + 3
             _invocarGuardian()
         }
+        //  Se intenta ya; si no cabe todavía, lo reintenta el temporizador.
         _soltarNemesis()
 
         //  Con la capa nueva vacía, que empiece a salir algo enseguida y no

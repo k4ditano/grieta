@@ -195,6 +195,40 @@ K4.Aparicion {
         }
     }
 
+    //  El límite: hasta aquí puede llegar una palabra antes de escaparse.
+    //  Sin él, lo urgente solo se sabía por el color, y el color llega tarde;
+    //  con la raya, la distancia que le queda a cada una se ve de un vistazo
+    //  y se puede decidir a por cuál vas. Tenue a propósito: es una
+    //  referencia, no un elemento más que leer.
+    Item {
+        width: parent.width
+        height: 1
+        y: vista.final
+
+        Rectangle {
+            anchors.fill: parent
+            color: K4.Tema.rojo
+            opacity: 0.28
+        }
+
+        //  Y un par de marcas en los extremos, que una línea a solas sobre
+        //  negro se confunde con el borde de la isla.
+        Repeater {
+            model: 2
+
+            delegate: Rectangle {
+                required property int index
+                width: 10
+                height: 5
+                radius: 1
+                x: index === 0 ? 8 : parent.width - width - 8
+                y: -2
+                color: K4.Tema.rojo
+                opacity: 0.5
+            }
+        }
+    }
+
     // ── las palabras ──────────────────────────────────────────────
     Item {
         id: campo
@@ -215,7 +249,9 @@ K4.Aparicion {
                 escrito: model.escrito
                 tipo: model.tipo
 
-                duracionMs: vista.sim.caidaMs
+                //  La suya, congelada al nacer — no `sim.caidaMs`, que es
+                //  un enlace vivo y cambiaba la animación en vuelo.
+                duracionMs: model.duracion
                 //  `lento` es el instante de cerrar capa: todo quieto mientras
                 //  la onda cruza la pantalla. A esta escala, congelar medio
                 //  segundo se lee como cámara lenta y cuesta una propiedad.
