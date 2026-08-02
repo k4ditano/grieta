@@ -54,14 +54,32 @@ QtObject {
     //  mismo con el id de QML.
     property ListModel palabras: ListModel {}
 
+    //  Lo que se te escapó y anda suelto por el escritorio. No es adorno: se
+    //  puede cazar, y cazarlo CIERRA grieta. Es la única forma de curarse,
+    //  así que una fuga no es solo daño — es una deuda que puedes pagar, y
+    //  decidir si la persigues o sigues con lo que sale es media partida.
+    property ListModel fugadas: ListModel {}
+
     property int objetivo: -1
     property int _siguienteId: 1
+
+    //  Racha alta: la isla crece, todo cae más deprisa y cada sellada cuenta
+    //  doble. Se entra sin querer y se sale al primer fallo, así que es una
+    //  recompensa por ir fino y un riesgo por ir rápido a la vez.
+    readonly property int umbralSobrecarga: 10
+    readonly property bool sobrecarga: combo >= umbralSobrecarga
+
+    //  El instante de cerrar una capa: todo se para un momento mientras la
+    //  onda barre la pantalla. Lo levanta y lo baja la vista.
+    property bool lento: false
 
     //  { letra: instante en que se cura }
     property var corruptas: ({})
 
     signal sellada(int pid)
+    signal selladaEnFuga(int pid)
     signal escapada(int pid)
+    signal capaCerrada(int capa)
     signal fallo(string letra)
     signal muerte()
 
@@ -71,10 +89,14 @@ QtObject {
     //  querer que una partida de fase 1 dure sobre un minuto: lo justo para
     //  ver si esto se siente bien.
     readonly property int esperaMs: Math.max(1100, 2600 - capa * 220)
-    readonly property int caidaMs: Math.max(4200, 9000 - capa * 600)
+    //  En sobrecarga cae todo un tercio más rápido: la recompensa por ir fino
+    //  tiene que dar miedo, o no es una recompensa, es un regalo.
+    readonly property int caidaMs: Math.round(
+        Math.max(4200, 9000 - capa * 600) * (sobrecarga ? 0.68 : 1))
 
     function empezar() {
         palabras.clear()
+        fugadas.clear()
         objetivo = -1
         corruptas = ({})
         fisura = 0
@@ -91,7 +113,9 @@ QtObject {
     function parar() {
         jugando = false
         pausada = false
+        lento = false
         palabras.clear()
+        fugadas.clear()
         objetivo = -1
     }
 
@@ -166,17 +190,24 @@ QtObject {
         })
     }
 
-    function _indice(pid) {
+    //  Una palabra puede estar en la isla o suelta por el escritorio, y para
+    //  teclearla da igual dónde esté: se busca en los dos sitios y se devuelve
+    //  en cuál apareció. Los pid no se repiten entre modelos, así que un solo
+    //  `objetivo` vale para las dos.
+    function _buscar(pid) {
         for (let i = 0; i < palabras.count; ++i)
             if (palabras.get(i).pid === pid)
-                return i
-        return -1
+                return { modelo: palabras, i: i, enFuga: false }
+        for (let j = 0; j < fugadas.count; ++j)
+            if (fugadas.get(j).pid === pid)
+                return { modelo: fugadas, i: j, enFuga: true }
+        return null
     }
 
     function _quitar(pid) {
-        const i = _indice(pid)
-        if (i >= 0)
-            palabras.remove(i)
+        const d = _buscar(pid)
+        if (d)
+            d.modelo.remove(d.i)
         if (objetivo === pid)
             objetivo = -1
     }
@@ -226,10 +257,12 @@ QtObject {
             return false
 
         if (objetivo >= 0) {
-            const i = _indice(objetivo)
-            if (i < 0) {
+            const d = _buscar(objetivo)
+            if (d === null) {
                 objetivo = -1
             } else {
+                const modelo = d.modelo
+                const i = d.i
                 //  Lo que hay que leer se copia ANTES de tocar el modelo:
                 //  `get(i)` devuelve una referencia VIVA a la fila, así que
                 //  después de `setProperty` ese mismo `p.escrito` ya vale lo
@@ -237,14 +270,14 @@ QtObject {
                 //  sellaba una letra antes de tiempo y la última letra caía
                 //  ya sin objetivo: te corrompía su propia tecla por haber
                 //  acertado. Costó verlo porque solo se notaba en el teclado.
-                const p = palabras.get(i)
+                const p = modelo.get(i)
                 const pid = p.pid
                 const hechas = p.escrito
                 const largo = p.esperado.length
                 if (p.esperado[hechas] === letra) {
-                    palabras.setProperty(i, "escrito", hechas + 1)
+                    modelo.setProperty(i, "escrito", hechas + 1)
                     if (hechas + 1 >= largo)
-                        _sellar(pid)
+                        _sellar(pid, d.enFuga)
                     return true
                 }
                 _errar(letra)
@@ -255,11 +288,25 @@ QtObject {
         //  Sin objetivo, la letra elige: de las que empiezan por ella, la más
         //  vieja, que es la que está más cerca de escaparse. Perseguir la más
         //  urgente es lo que uno quiere hacer, así que que lo haga sola.
+        //  Las de la isla mandan sobre las fugadas: lo que está cayendo es lo
+        //  urgente, y una fugada no se te lleva la letra que necesitabas para
+        //  lo que tienes encima.
+        let modelo = null
         let elegido = -1
         for (let i = 0; i < palabras.count; ++i) {
             if (palabras.get(i).esperado[0] === letra) {
+                modelo = palabras
                 elegido = i
                 break
+            }
+        }
+        if (elegido < 0) {
+            for (let j = 0; j < fugadas.count; ++j) {
+                if (fugadas.get(j).esperado[0] === letra) {
+                    modelo = fugadas
+                    elegido = j
+                    break
+                }
             }
         }
 
@@ -269,26 +316,41 @@ QtObject {
         }
 
         //  Copiado antes de tocar el modelo, por lo mismo de arriba.
-        const p = palabras.get(elegido)
+        const p = modelo.get(elegido)
         const pid = p.pid
         const largo = p.esperado.length
+        const enFuga = modelo === fugadas
         objetivo = pid
-        palabras.setProperty(elegido, "escrito", 1)
+        modelo.setProperty(elegido, "escrito", 1)
         if (largo === 1)
-            _sellar(pid)
+            _sellar(pid, enFuga)
         return true
     }
 
-    function _sellar(pid) {
-        selladas += 1
+    function _sellar(pid, enFuga) {
+        //  En sobrecarga cada palabra cuenta por dos: es lo que hace que
+        //  merezca la pena arriesgarse a mantener la racha.
+        selladas += sobrecarga ? 2 : 1
         combo += 1
         if (combo > mejorCombo)
             mejorCombo = combo
-        //  Cada cinco selladas se baja una capa. Sin ruta todavía: eso es la
-        //  fase 4. Aquí solo sirve para que la dificultad suba y se note.
-        if (selladas % 5 === 0)
-            capa += 1
-        sellada(pid)
+
+        if (enFuga) {
+            //  Cazar lo que se te escapó es la única cura que hay.
+            fisura = Math.max(0, fisura - 0.1)
+            selladaEnFuga(pid)
+        } else {
+            sellada(pid)
+        }
+
+        //  Cada cinco selladas se cierra una capa. Sin ruta todavía: eso es la
+        //  fase 4. Aquí sirve para que la dificultad suba y para que haya un
+        //  instante que celebrar.
+        const antes = capa
+        capa = 1 + Math.floor(selladas / 5)
+        if (capa > antes)
+            capaCerrada(capa)
+
         _quitar(pid)
     }
 
@@ -304,25 +366,40 @@ QtObject {
     function soltar() {
         if (objetivo < 0)
             return
-        const i = _indice(objetivo)
-        if (i >= 0)
-            palabras.setProperty(i, "escrito", 0)
+        const d = _buscar(objetivo)
+        if (d)
+            d.modelo.setProperty(d.i, "escrito", 0)
         combo = 0
         objetivo = -1
     }
 
-    //  La llama la vista cuando una palabra termina su recorrido.
+    //  La llama la vista cuando una palabra termina su recorrido. No se
+    //  destruye: SALE. Pasa al escritorio y se queda ahí, estorbando, hasta
+    //  que la caces o hasta que la grieta te gane.
     function escapo(pid) {
-        const i = _indice(pid)
-        if (i < 0)
+        const d = _buscar(pid)
+        if (d === null || d.enFuga)
             return
+
+        const p = d.modelo.get(d.i)
+        const suelta = {
+            pid: p.pid, texto: p.texto, muestra: p.muestra,
+            esperado: p.esperado, tipo: p.tipo, escrito: 0
+        }
+
         combo = 0
-        //  Abrir la grieta es el único daño que existe. Cinco fugas y se acabó.
+        //  Abrir la grieta es el único daño que existe. Cinco fugas y se acabó
+        //  — salvo que vayas a buscarlas, que es de lo que va esto.
         fisura = Math.min(1, fisura + 0.2)
         escapada(pid)
-        _quitar(pid)
+        d.modelo.remove(d.i)
+        if (objetivo === pid)
+            objetivo = -1
+        fugadas.append(suelta)
+
         if (fisura >= 1) {
             jugando = false
+            lento = false
             palabras.clear()
             objetivo = -1
             muerte()

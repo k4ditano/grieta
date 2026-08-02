@@ -112,6 +112,28 @@ K4.Aparicion {
         y: vista.arriba ? 0 : parent.height - vista.altoFisura
         haciaAbajo: vista.arriba
         abierta: vista.sim.fisura
+        //  En sobrecarga la grieta vira a ámbar: el mismo color que el tinte
+        //  de la barra y que la onda, para que los tres digan lo mismo.
+        tono: vista.sim.sobrecarga ? K4.Tema.amarillo : K4.Tema.rojo
+    }
+
+    //  El aviso de la sobrecarga, en el sitio donde ya se está mirando.
+    K4.Etiqueta {
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: vista.arriba ? vista.altoFisura + 6
+                        : parent.height - vista.altoFisura - height - 6
+        visible: vista.sim.sobrecarga
+        text: K4.Idioma.t("SOBRECARGA")
+        color: K4.Tema.amarillo
+        font.pixelSize: 11
+        font.weight: Font.Bold
+
+        SequentialAnimation on opacity {
+            running: vista.sim.sobrecarga
+            loops: Animation.Infinite
+            NumberAnimation { to: 0.35; duration: 520; easing.type: Easing.InOutSine }
+            NumberAnimation { to: 1; duration: 520; easing.type: Easing.InOutSine }
+        }
     }
 
     // ── las palabras ──────────────────────────────────────────────
@@ -135,7 +157,11 @@ K4.Aparicion {
                 tipo: model.tipo
 
                 duracionMs: vista.sim.caidaMs
-                detenida: vista.sim.pausada || !vista.sim.jugando
+                //  `lento` es el instante de cerrar capa: todo quieto mientras
+                //  la onda cruza la pantalla. A esta escala, congelar medio
+                //  segundo se lee como cámara lenta y cuesta una propiedad.
+                detenida: vista.sim.pausada || vista.sim.lento
+                    || !vista.sim.jugando
                 esObjetivo: vista.sim.objetivo === model.pid
 
                 //  El carril lo reparte la simulación, que es quien sabe qué
