@@ -45,7 +45,7 @@ K4.Plugin {
     function toggle() {
         abierto = !abierto
         if (!abierto)
-            cerrar()
+            close()
     }
 
     //  El centro de aplicaciones llama a esto.
@@ -54,9 +54,24 @@ K4.Plugin {
             toggle()
     }
 
+    //  Cerrar el módulo NO mata la partida: la deja en pausa esperando, y la
+    //  píldora lo cuenta. Antes se acababa la run al salir, así que atender
+    //  una ventana un momento costaba la partida — y una partida que no
+    //  puedes dejar a medias no cabe en una barra.
     function close() {
         abierto = false
-        cerrar()
+        if (sim.jugando)
+            sim.pausada = true
+        soltarBarra()
+    }
+
+    function soltarBarra() {
+        //  Lo que se le presta a la barra se devuelve al salir: el tinte y el
+        //  sitio de la isla. El host barre por id al DESHABILITAR un plugin,
+        //  pero cerrar el módulo no es deshabilitarlo, y sin esto la barra se
+        //  queda roja y torcida.
+        K4.Tema.destintar("grieta")
+        K4.Isla.soltar("grieta")
     }
 
     function cerrar() {
@@ -64,12 +79,7 @@ K4.Plugin {
         ondaViva = false
         tragando = false
         guardianCayendo = false
-        //  Y soltar lo que se le haya prestado a la barra: el tinte y el
-        //  sitio de la isla. El host también barre por id al deshabilitar un
-        //  plugin, pero cerrar el módulo no es deshabilitarlo — si no se
-        //  suelta aquí, la barra se queda roja y torcida.
-        K4.Tema.destintar("grieta")
-        K4.Isla.soltar("grieta")
+        soltarBarra()
     }
 
     function empezar(claseId) {
@@ -136,6 +146,16 @@ K4.Plugin {
             K4.Isla.efecto("grieta", "sacudida", 1)
         }
 
+        function onSellada(pid) {
+            if (self.conSonido && self.golpe.listo)
+                self.golpe.sonar()
+        }
+
+        function onFallo(letra) {
+            if (self.conSonido && self.yerro.listo)
+                self.yerro.sonar()
+        }
+
         function onMuerte() {
             self.apuntarMarcas()
             self.tragando = true
@@ -200,6 +220,104 @@ K4.Plugin {
         }
     }
 
+    // ── la píldora ────────────────────────────────────────────────
+    //
+    //  Solo mientras haya una partida esperando y el módulo esté cerrado: es
+    //  para acordarte de que la dejaste a medias, no para llevar la cuenta.
+    //  Con el módulo abierto sobra, que ya lo estás mirando.
+    readonly property bool avisando: sim.jugando && !abierto
+
+    function pintarAviso() {
+        if (!avisando) {
+            if (_avisoPuesto) {
+                K4.Pildora.quitar("grieta.partida")
+                _avisoPuesto = false
+            }
+            return
+        }
+        K4.Pildora.registrar("grieta.partida",
+                             K4.Idioma.t("capa ") + sim.capa,
+                             0x0F140B,
+                             sim.fisura >= 0.6 ? K4.Tema.rojo : K4.Tema.apagado,
+                             72, true)
+        _avisoPuesto = true
+    }
+
+    property bool _avisoPuesto: false
+
+    onAvisandoChanged: pintarAviso()
+
+    Connections {
+        target: K4.Pildora
+        function onInvocado(id) {
+            if (id === "grieta.partida" && !self.abierto)
+                self.toggle()
+        }
+    }
+
+    // ── compartir ─────────────────────────────────────────────────
+    //
+    //  El resultado en emojis, al portapapeles. La grieta del día es la misma
+    //  para todo el que tenga k4, así que un «capa 7» de hoy se puede
+    //  comparar con el de otro — es lo único que hace que compartirlo
+    //  signifique algo, y por eso el texto dice la fecha.
+    function tarjeta() {
+        const f = K4.Reloj.ahora
+        const dia = f.getDate() + "/" + (f.getMonth() + 1)
+        let barra = ""
+        const rota = Math.round(sim.fisura * 5)
+        for (let i = 0; i < 5; ++i)
+            barra += i < rota ? "🟥" : "🟩"
+
+        let texto = "La Grieta · " + (sim.diaria
+            ? K4.Idioma.t("grieta del ") + dia : K4.Idioma.t("partida suelta"))
+        texto += "\n" + sim.clase.nombre
+        texto += "\ncapa " + sim.capa + " · " + sim.selladas
+            + K4.Idioma.t(" selladas · racha ×") + sim.mejorCombo
+        texto += "\n" + barra
+        if (sim.nemesis.length)
+            texto += "\n" + K4.Idioma.t("me pudo «") + sim.nemesis + "»"
+        return texto
+    }
+
+    function copiarTarjeta() {
+        K4.Sistema.copiar(tarjeta())
+        copiado = true
+        borrarAviso.restart()
+    }
+
+    property bool copiado: false
+
+    property Timer borrarAviso: Timer {
+        interval: 2200
+        onTriggered: self.copiado = false
+    }
+
+    // ── el sonido ─────────────────────────────────────────────────
+    //
+    //  Del tema del sistema: sin embarcar ficheros, que un juego de barra no
+    //  tiene por qué pesar por dos «tics».
+    property bool conSonido: true
+
+    property var golpe: K4.Sonido {
+        fuente: K4.Sonido.delSistema("message")
+        volumen: 0.25
+    }
+
+    property var yerro: K4.Sonido {
+        fuente: K4.Sonido.delSistema("dialog-error")
+        volumen: 0.2
+    }
+
+    // ── el atajo ──────────────────────────────────────────────────
+    //
+    //  El nombre se declara aquí; atarlo a una tecla es cosa de la
+    //  configuración del compositor.
+    property var atajo: K4.Atajo {
+        name: "grieta"
+        onPressed: self.toggle()
+    }
+
     // ── lo que sobrevive ──────────────────────────────────────────
     property var guardado: K4.Guardado {
         plugin: "grieta"
@@ -208,6 +326,12 @@ K4.Plugin {
                 self.mejorSelladas = Number(d.mejorSelladas) || 0
             if (d.mejorCombo !== undefined)
                 self.mejorCombo = Number(d.mejorCombo) || 0
+            if (d.diaria !== undefined)
+                self.sim.diaria = d.diaria === true
+            if (d.fuentesPropias !== undefined)
+                self.sim.fuentesPropias = d.fuentesPropias === true
+            if (d.conSonido !== undefined)
+                self.conSonido = d.conSonido === true
         }
     }
 
@@ -229,8 +353,41 @@ K4.Plugin {
             cambio = true
         }
         if (cambio)
-            guardado.guardar({ mejorSelladas: mejorSelladas,
-                               mejorCombo: mejorCombo })
+            apuntar()
+    }
+
+    K4.Ajustes {
+        plugin: "grieta"
+        grupo: K4.Idioma.t("La Grieta")
+        opciones: [
+            { id: "diaria", nombre: K4.Idioma.t("La grieta del día"),
+              desc: K4.Idioma.t("La misma partida para todo el que tenga k4 hoy, y comparable. Apagado, cada run es suya"),
+              glifo: 0x0F0EDD },
+            { id: "fuentesPropias", nombre: K4.Idioma.t("Palabras de tu máquina"),
+              desc: K4.Idioma.t("Mezcla los nombres de tus aplicaciones instaladas con el vocabulario"),
+              glifo: 0x0F003B },
+            { id: "conSonido", nombre: K4.Idioma.t("Sonido"),
+              desc: K4.Idioma.t("Un tic al sellar y otro al fallar, del tema del sistema"),
+              glifo: 0x0F057E }
+        ]
+        valores: ({ diaria: self.sim.diaria,
+                    fuentesPropias: self.sim.fuentesPropias,
+                    conSonido: self.conSonido })
+        onCambiado: function (id, valor) {
+            if (id === "diaria")
+                self.sim.diaria = valor === true
+            else if (id === "fuentesPropias")
+                self.sim.fuentesPropias = valor === true
+            else if (id === "conSonido")
+                self.conSonido = valor === true
+            self.apuntar()
+        }
+    }
+
+    function apuntar() {
+        guardado.guardar({ mejorSelladas: mejorSelladas, mejorCombo: mejorCombo,
+                           diaria: sim.diaria, fuentesPropias: sim.fuentesPropias,
+                           conSonido: conSonido })
     }
 
     K4.Ipc {

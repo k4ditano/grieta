@@ -112,6 +112,13 @@ K4.Aparicion {
             }
 
             if (!vista.sim.jugando) {
+                //  Copiar el resultado. Solo tras una partida, que copiar el
+                //  marcador en blanco no le sirve a nadie.
+                if ((ev.key === Qt.Key_C) && vista.sim.selladas > 0) {
+                    vista.plugin.copiarTarjeta()
+                    ev.accepted = true
+                    return
+                }
                 //  El elegir clase: flechas o 1-4 para moverse, Enter empieza.
                 if (ev.key === Qt.Key_Left || ev.key === Qt.Key_Up) {
                     vista.elegida = (vista.elegida + vista.clases.length - 1)
@@ -401,6 +408,16 @@ K4.Aparicion {
                               vista.sim.selladas, vista.sim.mejorCombo)
             color: K4.Tema.apagado
             font.pixelSize: 12
+        }
+
+        K4.Etiqueta {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: vista.sim.selladas > 0
+            text: vista.plugin.copiado
+                ? K4.Idioma.t("copiado al portapapeles")
+                : K4.Idioma.t("C para copiar el resultado")
+            color: vista.plugin.copiado ? K4.Tema.verde : K4.Tema.tenue
+            font.pixelSize: 10
         }
 
         //  Elegir con qué teclado peleas. Se enseña ANTES de cada partida y

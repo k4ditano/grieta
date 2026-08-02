@@ -14,6 +14,11 @@ import QtQuick
 QtObject {
     id: runas
 
+    //  El sorteo lo presta la simulación: con uno propio, la grieta del día
+    //  dejaría de ser la misma para todos. El respaldo solo existe para que
+    //  esto cargue suelto en una prueba.
+    property var azar: function () { return Math.random() }
+
     readonly property var lista: [
         { id: "cadena", nombre: "Cadena",
           desc: "Encadenar por la última letra da racha de más",
@@ -71,7 +76,7 @@ QtObject {
 
         const salida = []
         while (salida.length < cuantas && bolsa.length > 0) {
-            const j = Math.floor(Math.random() * bolsa.length)
+            const j = Math.floor(azar() * bolsa.length)
             salida.push(bolsa[j])
             bolsa.splice(j, 1)
         }

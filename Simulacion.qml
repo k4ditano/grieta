@@ -24,11 +24,44 @@ import K4 as K4
 QtObject {
     id: sim
 
+    // ── el azar ───────────────────────────────────────────────────
+    //
+    //  Propio y no `Math.random`, para que exista la grieta del día: con la
+    //  semilla puesta a la fecha, todo el que tenga k4 juega HOY la misma
+    //  partida —las mismas palabras, las mismas salas, las mismas runas, el
+    //  mismo guardián— y el resultado se puede comparar. Es lo que hace que
+    //  compartirlo signifique algo.
+    //
+    //  Un xorshift de 32 bits: no es criptografía, es reproducibilidad, y
+    //  para eso sobra. Lo importante es que TODO el sorteo pase por aquí —
+    //  una sola llamada a Math.random suelta rompe el día entero.
+    property bool diaria: true
+    property int _estado: 1
+
+    function sembrar(n) {
+        //  El cero es punto fijo del xorshift: se quedaría clavado.
+        _estado = (n | 0) || 1
+    }
+
+    function azar() {
+        let x = _estado
+        x ^= x << 13
+        x ^= x >>> 17
+        x ^= x << 5
+        _estado = x | 0
+        return ((x >>> 0) % 100000) / 100000
+    }
+
+    function _semillaDelDia(fecha) {
+        return fecha.getFullYear() * 10000
+             + (fecha.getMonth() + 1) * 100 + fecha.getDate()
+    }
+
     property Vocabulario vocabulario: Vocabulario {}
     property Circulos circulos: Circulos {}
-    property Runas catalogoRunas: Runas {}
-    property Salas catalogoSalas: Salas {}
-    property Guardianes catalogoGuardianes: Guardianes {}
+    property Runas catalogoRunas: Runas { azar: sim.azar }
+    property Salas catalogoSalas: Salas { azar: sim.azar }
+    property Guardianes catalogoGuardianes: Guardianes { azar: sim.azar }
 
     // ── el némesis ────────────────────────────────────────────────
     //
@@ -192,9 +225,35 @@ QtObject {
         Math.max(4200, 9000 - capa * 600) * (sobrecarga ? 0.68 : 1)
         * multCaida)
 
+    //  Palabras de TU máquina: los nombres de tus aplicaciones instaladas y
+    //  lo que estés escuchando. Ninguna de las dos pide permiso —leerlas no
+    //  le hace nada a nadie— y convierten la grieta en algo tuyo: sellar
+    //  «firefox» no se parece a sellar «casa».
+    property bool fuentesPropias: false
+
+    function _delSistema() {
+        const salida = []
+        if (!fuentesPropias)
+            return salida
+
+        const apps = K4.Apps.lista || []
+        for (let i = 0; i < apps.length && salida.length < 60; ++i) {
+            const n = (apps[i].name || "").toLowerCase()
+            //  Una sola palabra, de largo razonable y escribible con tu
+            //  círculo: un «LibreOffice Calc» no es un enemigo, es un muro.
+            if (n.length >= 3 && n.length <= 12 && n.indexOf(" ") < 0)
+                salida.push(n)
+        }
+        return salida
+    }
+
     function empezar(id) {
         if (id !== undefined && id.length > 0)
             claseId = id
+
+        //  La grieta del día: misma fecha, misma partida para todo el mundo.
+        //  Sin ella, la semilla la pone el reloj y cada run es suya.
+        sembrar(diaria ? _semillaDelDia(K4.Reloj.ahora) : Date.now() & 0x7fffffff)
 
         palabras.clear()
         fugadas.clear()
@@ -234,7 +293,7 @@ QtObject {
         const rotas = {}
         const bolsa = circulo.split("")
         for (let i = 0; i < clase.rotasAlNacer && bolsa.length; ++i) {
-            const j = Math.floor(Math.random() * bolsa.length)
+            const j = Math.floor(azar() * bolsa.length)
             rotas[bolsa[j]] = ++_ordenRotura
             bolsa.splice(j, 1)
         }
@@ -275,6 +334,12 @@ QtObject {
         else if (capa >= 3)
             fuente = v.cortas.concat(v.medias)
 
+        //  Lo tuyo entra en la mezcla, no la sustituye: una capa entera de
+        //  nombres de programas cansa enseguida.
+        const propias = _delSistema()
+        if (propias.length && guardian !== "bestia")
+            fuente = fuente.concat(propias)
+
         const filtrada = v.deCirculo(fuente, circulo)
         //  Un círculo estrecho puede no tener ni una palabra larga. Antes que
         //  dejar la capa vacía, se cae a lo que haya.
@@ -285,10 +350,10 @@ QtObject {
     //  de lo que ya hay: dos palabras superpuestas no son más difíciles, son
     //  ilegibles, y eso no es dificultad sino mala letra.
     function _carrilLibre() {
-        let mejor = Math.random()
+        let mejor = azar()
         let mejorDistancia = -1
         for (let intento = 0; intento < 6; ++intento) {
-            const c = 0.04 + Math.random() * 0.72
+            const c = 0.04 + azar() * 0.72
             let cerca = 2
             for (let i = 0; i < palabras.count; ++i)
                 cerca = Math.min(cerca, Math.abs(palabras.get(i).carril - c))
@@ -308,7 +373,7 @@ QtObject {
         if (!lista.length)
             return
 
-        const texto = lista[Math.floor(Math.random() * lista.length)]
+        const texto = lista[Math.floor(azar() * lista.length)]
 
         //  El espejo: se enseña del revés y se teclea tal como se ve. El reto
         //  es que la palabra deja de leerse sola — hay que MIRARLA. A partir
@@ -316,7 +381,7 @@ QtObject {
         //  El Escriba Ciego lo pone TODO del revés; la Mordaza quita los
         //  espejos… salvo delante de él, que para eso es un guardián.
         const tipo = guardian === "ciego" ? "espejo"
-            : (!sinEspejos && capa >= 2 && Math.random() < 0.25)
+            : (!sinEspejos && capa >= 2 && azar() < 0.25)
                 ? "espejo" : "llana"
         let muestra = tipo === "espejo"
             ? texto.split("").reverse().join("") : texto
@@ -713,8 +778,8 @@ QtObject {
         //  una tecla. La decisión —¿vale esta runa una tecla?— es de las
         //  mejores que puede dar el juego, así que no sale siempre: si
         //  saliera, dejaría de ser una decisión y sería un impuesto.
-        maldita = (rs.length > 1 && Math.random() < 0.45)
-            ? Math.floor(Math.random() * rs.length) : -1
+        maldita = (rs.length > 1 && azar() < 0.45)
+            ? Math.floor(azar() * rs.length) : -1
         pasoRuta = "runas"
     }
 
@@ -761,7 +826,7 @@ QtObject {
                 if (!estaCorrupta(circulo[k]))
                     sanas.push(circulo[k])
             if (sanas.length)
-                _corromper(sanas[Math.floor(Math.random() * sanas.length)])
+                _corromper(sanas[Math.floor(azar() * sanas.length)])
         }
 
         _cerrarRuta()
@@ -804,8 +869,8 @@ QtObject {
                 if (!estaCorrupta(circulo[k]))
                     sanas.push(circulo[k])
             if (sanas.length >= 2) {
-                const a = sanas.splice(Math.floor(Math.random() * sanas.length), 1)[0]
-                const b = sanas.splice(Math.floor(Math.random() * sanas.length), 1)[0]
+                const a = sanas.splice(Math.floor(azar() * sanas.length), 1)[0]
+                const b = sanas.splice(Math.floor(azar() * sanas.length), 1)[0]
                 const d = {}
                 d[a] = b
                 d[b] = a

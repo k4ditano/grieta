@@ -14,6 +14,11 @@ import QtQuick
 QtObject {
     id: guardianes
 
+    //  El sorteo lo presta la simulación: con uno propio, la grieta del día
+    //  dejaría de ser la misma para todos. El respaldo solo existe para que
+    //  esto cargue suelto en una prueba.
+    property var azar: function () { return Math.random() }
+
     //  `vida` son las palabras que hay que sellarle.
     readonly property var lista: [
         { id: "bestia", nombre: "La Bestia de Letras",
@@ -51,6 +56,6 @@ QtObject {
         //  Si ya los has visto todos, vuelve a empezar: mejor repetido que
         //  ninguno, porque una capa de guardián sin guardián es un anticlímax.
         const fuente = bolsa.length ? bolsa : lista
-        return fuente[Math.floor(Math.random() * fuente.length)]
+        return fuente[Math.floor(azar() * fuente.length)]
     }
 }

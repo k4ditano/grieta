@@ -12,6 +12,11 @@ import QtQuick
 QtObject {
     id: salas
 
+    //  El sorteo lo presta la simulación: con uno propio, la grieta del día
+    //  dejaría de ser la misma para todos. El respaldo solo existe para que
+    //  esto cargue suelto en una prueba.
+    property var azar: function () { return Math.random() }
+
     readonly property var lista: [
         { id: "fragua", nombre: "La Fragua",
           desc: "Limpia TODAS las teclas rotas",
@@ -40,7 +45,7 @@ QtObject {
         const bolsa = lista.slice()
         const salida = []
         while (salida.length < 2 && bolsa.length > 0) {
-            const j = Math.floor(Math.random() * bolsa.length)
+            const j = Math.floor(azar() * bolsa.length)
             salida.push(bolsa[j])
             bolsa.splice(j, 1)
         }
