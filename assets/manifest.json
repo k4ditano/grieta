@@ -1,18 +1,44 @@
 {
   "nota": "Procedencia y uso de los assets de La Grieta. Todo lo de aquí es original del proyecto: nada extraído de ningún juego ni de ninguna obra ajena.",
+  "direccion": "Silueta RELLENA en hueso pálido con acentos planos de verde esmeralda y ámbar, detalles interiores en negro, formas macizas, sin degradados ni resplandores. La misma frase de estilo, palabra por palabra, en las cuatro hojas: es lo único que hace que las formas casen entre ellas.",
+  "generacion": {
+    "herramienta": "herramienta de imágenes de Codex (imagegen), 2 ago 2026",
+    "lote": "las cuatro hojas en paralelo, cada una con su log, mapeadas por `session id` — con varias a la vez, adivinar el PNG por fecha se equivoca",
+    "troceado": "tools/spritesheet.py de k4"
+  },
   "grupos": {
+    "guardianes": {
+      "hoja": "2x3", "lado": 128, "cuantos": 6,
+      "sujetos": ["bestia de letras rotas", "encapuchado de dos caras enfrentadas",
+                  "farolero con la lámpara apagada", "máscara de dos bocas",
+                  "escriba con los ojos vendados", "ojo dentro de la fisura"],
+      "por-que-128": "asoman POR ENCIMA de la isla en una K4.Ventana, así que se ven grandes; a 48 no se usan nunca"
+    },
+    "bestiario": {
+      "hoja": "2x4", "lado": 48, "cuantos": 8,
+      "sujetos": ["espejo", "fantasma", "hidra", "cambiante", "contagio",
+                  "parásito", "coraza", "némesis"]
+    },
+    "runas": {
+      "hoja": "3x4", "lado": 48, "cuantos": 12,
+      "sujetos": ["cadena", "sanguijuela", "ceniza", "tintero", "aliento",
+                  "filo", "eco", "ancla", "faro", "mordaza", "semilla", "yunque"]
+    },
+    "circulos": {
+      "hoja": "2x4", "lado": 48, "cuantos": 8,
+      "sujetos": ["vocalista", "zurda", "escriba", "tartamudo",
+                  "fragua", "mercado", "nido", "eco"],
+      "ojo": "las cuatro primeras son clases; las cuatro últimas, salas de la ruta"
+    },
     "estilo": {
-      "que": "Hoja de estilo, NO assets de producción. Seis sujetos para fijar silueta, escala y paleta antes de generar nada en serie.",
-      "sujetos": ["bestia de letras rotas", "ojo entre grietas", "runa circular",
-                  "llave agrietada y humeante", "pluma con estela", "fisura luminosa"],
-      "origen": "generada con la herramienta de imágenes de Codex (imagegen) el 2 ago 2026",
-      "troceada": "tools/spritesheet.py --filas 2 --columnas 3 --lado 96",
-      "veredicto": "RECHAZADA como dirección. Ver abajo."
+      "que": "hoja de estudio, NO assets de producción",
+      "veredicto": "RECHAZADA — ver `aprendido`. Se conserva como referencia de lo que no funciona."
     }
   },
   "aprendido": [
-    "El encargo pedía «tinta luminosa sobre negro» y eso es exactamente lo que falla: el cuerpo de los sujetos es negro y la isla también, así que sobre el fondo real la silueta desaparece y a 48 px quedan manchas. La lectura tiene que venir del RELLENO, no del contorno.",
-    "La cuantización a 24 colores se come los resplandores suaves: lo que sobrevive son las formas planas y los bordes duros.",
-    "Para la tanda de producción: cuerpo relleno en un color claro con los detalles en oscuro —el negativo de esto—, y comprobar cada hoja a 48 px sobre negro ANTES de generar la siguiente."
+    "La primera dirección pedía «tinta luminosa sobre negro» y ese era el fallo: el cuerpo de los sujetos era negro y la isla también, así que sobre el fondo real desaparecía la silueta y a 48 px quedaban manchas. La lectura tiene que venir del RELLENO, no del contorno. La tanda buena es el negativo de aquella.",
+    "La cuantización a 24 colores se come los resplandores suaves: sobreviven las formas planas y los bordes duros. Pedir brillos es tirar el presupuesto de color.",
+    "Comprobar SIEMPRE a 48 px sobre negro antes de dar una hoja por buena. Sobre su fondo magenta todo se ve estupendo.",
+    "`contagio` (bestiario s04) es el más flojo: salpicaduras oscuras y dispersas que casi se pierden. Es el único a repetir si molesta; los otros 33 pasan."
   ]
 }
