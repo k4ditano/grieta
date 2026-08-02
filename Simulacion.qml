@@ -110,7 +110,9 @@ QtObject {
                                      * (salaActiva === "eco" ? 0.7 : 1)
                                      * (guardian === "dosbocas" ? 0.5 : 1)
     readonly property int porTinta: tiene("tintero") ? 2 : 3
-    readonly property bool rotasEscriben: tiene("ceniza")
+    //  La runa Ceniza: los borrones no se pegan. Fallar sigue costándote la
+    //  racha, pero la palabra ya no crece.
+    readonly property bool sinManchas: tiene("ceniza")
     readonly property bool sinEspejos: tiene("mordaza")
     readonly property int arranque: tiene("filo") ? 1 : 0
     readonly property int valorSellada: (salaActiva === "eco" ? 2 : 1)
@@ -232,21 +234,19 @@ QtObject {
 
     // ── la tinta ──────────────────────────────────────────────────
     //
-    //  Lo que limpia una tecla rota, y lo único que las limpia: en la fase 1
-    //  la corrupción se curaba sola con el tiempo, y eso convertía un fallo
-    //  en un susto. Ahora una tecla rota se queda rota hasta que pagues, así
-    //  que un error tuyo es una herida que arrastras el resto de la partida.
+    //  Ya no limpia teclas: SELLA. Con TAB gastas una y la palabra más
+    //  urgente —la de más abajo— se cierra sola. Es el botón de pánico que
+    //  faltaba: cuando se te junta todo, tienes una salida que depende de
+    //  algo que ganaste, no de la suerte.
     //
-    //  Se gana sellando —una cada tres— y cazando lo que se te escapó, que
-    //  vale por una entera. Eso ata las tres cosas: fallas, te rompes, y para
-    //  arreglarte tienes que ir a por lo que dejaste escapar.
+    //  Aquí vivía la corrupción de teclas, y se ha ido entera. Anular letras
+    //  se peleaba con el verbo del juego: lo bonito de teclear es la
+    //  fluidez, y una mecánica que te corta los dedos ataca justo eso. Peor
+    //  aún, era un callejón sin salida — sin poder escribir no sellas, sin
+    //  sellar no hay tinta, y sin tinta no se arreglaba. Lo que la sustituye
+    //  está en `_errar`: fallar no te inutiliza, te MANCHA.
     property int tinta: 0
-    readonly property int selladasPorTinta: 3
     property int _haciaTinta: 0
-
-    //  { letra: orden en que se rompió }, para poder limpiar la más vieja.
-    property var corruptas: ({})
-    property int _ordenRotura: 0
 
     signal sellada(int pid)
     signal selladaEnFuga(int pid)
@@ -304,8 +304,6 @@ QtObject {
         palabras.clear()
         fugadas.clear()
         objetivo = -1
-        corruptas = ({})
-        _ordenRotura = 0
         fisura = 0
         capa = 1
         selladas = 0
@@ -335,16 +333,9 @@ QtObject {
         jugando = true
         reloj = 0
 
-        //  La Ceniza empieza con teclas ya rotas. Se sortean de su círculo,
-        //  así que cada partida suya duele en otro sitio.
-        const rotas = {}
-        const bolsa = circulo.split("")
-        for (let i = 0; i < clase.rotasAlNacer && bolsa.length; ++i) {
-            const j = Math.floor(azar() * bolsa.length)
-            rotas[bolsa[j]] = ++_ordenRotura
-            bolsa.splice(j, 1)
-        }
-        corruptas = rotas
+        //  La Ceniza empieza con la grieta ya medio abierta: sale cara y
+        //  arranca con tinta de sobra para compensarlo.
+        fisura = clase.fisuraAlNacer
 
         brotar()
     }
@@ -388,30 +379,6 @@ QtObject {
             fuente = fuente.concat(propias)
 
         const filtrada = v.deCirculo(fuente, circulo)
-
-        //  Y la grieta deja de formar palabras con las letras que has roto:
-        //  no como regalo, sino porque lo contrario era enseñarte trabajo que
-        //  no podías hacer. Ahora romperte una tecla ENCOGE tu vocabulario,
-        //  que se nota igual y no bloquea nada.
-        const sanas = []
-        for (let i = 0; i < filtrada.length; ++i) {
-            let vale = true
-            const pal = filtrada[i]
-            for (let j = 0; j < pal.length; ++j) {
-                if (estaCorrupta(vocabulario.llana(pal[j]))) {
-                    vale = false
-                    break
-                }
-            }
-            if (vale)
-                sanas.push(pal)
-        }
-
-        //  Si te has roto media fila y ya casi no queda nada escribible, se
-        //  vuelve a lo que haya: una palabra difícil es mejor que una capa
-        //  vacía, y ahora las rotas escriben, así que no hay trampa.
-        if (sanas.length >= 6)
-            return sanas
 
         //  Un círculo estrecho puede no tener ni una palabra larga. Antes que
         //  dejar la capa vacía, se cae a lo que haya.
@@ -497,6 +464,7 @@ QtObject {
             muestra: muestra,
             esperado: esperado,
             tipo: tipo,
+            manchas: 0,
             escrito: Math.min(arranque, esperado.length - 1),
             carril: _carrilLibre(),
             nacido: reloj,
@@ -532,53 +500,15 @@ QtObject {
 
     // ── el teclado ────────────────────────────────────────────────
 
-    function estaCorrupta(letra) {
-        return corruptas[letra] !== undefined
-    }
-
-    function _corromper(letra) {
-        if (circulo.indexOf(letra) < 0 || estaCorrupta(letra))
-            return
-        //  Reasignar el MISMO objeto a una propiedad `var` no notifica: hay
-        //  que copiar para que el teclado dibujado se entere.
-        const d = Object.assign({}, corruptas)
-        d[letra] = ++_ordenRotura
-        corruptas = d
-    }
-
-    readonly property int rotas: {
-        let n = 0
-        for (const l in corruptas)
-            ++n
-        return n
-    }
-
-    //  Limpia la tecla que lleva más tiempo rota. Se elige sola a propósito:
-    //  con la lista entera para escoger, esto se convertía en un menú a media
-    //  partida, y aquí no se para el tiempo. La más vieja es casi siempre la
-    //  que más te ha estorbado ya.
-    function limpiar() {
-        if (tinta <= 0)
+    //  Sella al instante la más urgente: la que lleva más tiempo cayendo, que
+    //  es la de más abajo. Cuesta una tinta y no da racha —no es un acierto,
+    //  es una salida— pero te saca del apuro y cuenta como sellada.
+    function gastarTinta() {
+        if (tinta <= 0 || palabras.count === 0)
             return false
-
-        let vieja = ""
-        let mejor = Infinity
-        for (const l in corruptas) {
-            if (corruptas[l] < mejor) {
-                mejor = corruptas[l]
-                vieja = l
-            }
-        }
-        if (!vieja.length)
-            return false
-
-        const d = {}
-        for (const l in corruptas)
-            if (l !== vieja)
-                d[l] = corruptas[l]
-        corruptas = d
         tinta -= 1
-        limpiada(vieja)
+        const pid = palabras.get(0).pid
+        _sellar(pid, false)
         return true
     }
 
@@ -595,22 +525,6 @@ QtObject {
         //  haya que acordarse de la permuta en cinco sitios.
         if (permuta[letra] !== undefined)
             letra = permuta[letra]
-
-        //  Una tecla rota ESCRIBE, pero te corta la racha.
-        //
-        //  Antes no hacía nada de nada, y eso era un callejón sin salida: una
-        //  palabra con esa letra no se podía sellar, así que se escapaba
-        //  seguro; sin sellar no se gana tinta; y sin tinta no se arregla la
-        //  tecla. El castigo te quitaba la forma de recuperarte, que es el
-        //  peor fallo que puede tener un roguelike. Y con un círculo corto
-        //  —El Vocalista tiene trece letras— bastaban dos teclas para que
-        //  medio vocabulario fuera literalmente imposible.
-        //
-        //  Cortar la racha duele de verdad: la racha es lo que da la
-        //  sobrecarga y lo que dobla el valor de cada palabra. Pero se puede
-        //  seguir jugando, que es la diferencia entre una herida y un muro.
-        if (estaCorrupta(letra) && !rotasEscriben)
-            combo = 0
 
         if (objetivo >= 0) {
             const d = _buscar(objetivo)
@@ -642,13 +556,20 @@ QtObject {
                 //  por la de abajo, que corre más peligro—, y castigarlo era
                 //  absurdo. Sin esto te quedabas clavado en una palabra que
                 //  ya no querías y cambiar de objetivo costaba una tecla rota.
-                modelo.setProperty(i, "escrito", Math.min(arranque, largo - 1))
                 objetivo = -1
-                if (_engancharPorLetra(letra))
+                if (_engancharPorLetra(letra)) {
+                    //  Te has ido a otra: la de antes vuelve a empezar, sin
+                    //  castigo. Cambiar de objetivo es una decisión.
+                    modelo.setProperty(i, "escrito", Math.min(arranque, largo - 1))
                     return true
+                }
 
-                //  Y si no empieza ninguna, entonces sí: te has equivocado.
-                _errar(letra)
+                //  Y si no empieza ninguna, entonces sí te has equivocado —y
+                //  la mancha va a ESA palabra, la que estabas escribiendo, no
+                //  a ninguna otra. Por eso se le pasa el pid: si se dejara
+                //  que `_errar` mirara `objetivo`, ya estaría a -1 y la
+                //  mancha no caería en ningún sitio.
+                _errar(letra, pid)
                 return false
             }
         }
@@ -656,11 +577,11 @@ QtObject {
         //  Sin objetivo, la letra elige: de las que empiezan por ella, la más
         //  vieja, que es la que está más cerca de escaparse. Perseguir la más
         //  urgente es lo que uno quiere hacer, así que que lo haga sola.
-        return _engancharPorLetra(letra) || _fallar(letra)
-    }
-
-    function _fallar(letra) {
-        _errar(letra)
+        //  Sin objetivo: si esa letra no empieza nada, se te ha ido el dedo
+        //  y cae un borrón.
+        if (_engancharPorLetra(letra))
+            return true
+        _errar(letra, -1)
         return false
     }
 
@@ -784,11 +705,61 @@ QtObject {
         _quitar(pid)
     }
 
-    function _errar(letra) {
+    //  Cuánto puede engordar una palabra por tus fallos. Sin tope, ensañarse
+    //  con una la convertía en un muro, que es justo lo que se venía a quitar.
+    readonly property int topeManchas: 3
+
+    //  Fallar no te quita letras: te MANCHA.
+    //
+    //  Dentro de una palabra, la letra que tocaba se dobla ahí mismo y hay
+    //  que escribirla otra vez: tu error se convierte en trabajo, inmediato y
+    //  donde estás mirando. Cuanto más metido estabas, más escuece.
+    //
+    //  Y sin objetivo —una letra que no empieza nada— cae un borrón por la
+    //  grieta, hecho con esa misma letra que te sobró.
+    //
+    //  Las dos cosas salen de lo que has tecleado y no de un sorteo, así que
+    //  no gastan azar: la grieta del día sigue siendo la misma para todos por
+    //  muchas veces que te equivoques.
+    function _errar(letra, pidManchado) {
         fallos += 1
         combo = 0
-        _corromper(letra)
+
+        const destino = pidManchado === undefined ? objetivo : pidManchado
+        if (destino >= 0 && !sinManchas) {
+            const d = _buscar(destino)
+            if (d) {
+                const p = d.modelo.get(d.i)
+                if ((p.manchas || 0) < topeManchas) {
+                    const n = p.escrito
+                    const doblada = p.esperado[n]
+                    if (doblada !== undefined) {
+                        d.modelo.setProperty(d.i, "muestra",
+                            p.muestra.slice(0, n) + p.muestra[n] + p.muestra.slice(n))
+                        d.modelo.setProperty(d.i, "esperado",
+                            p.esperado.slice(0, n) + doblada + p.esperado.slice(n))
+                        d.modelo.setProperty(d.i, "manchas", (p.manchas || 0) + 1)
+                    }
+                }
+            }
+        } else if (destino < 0) {
+            _borron(letra)
+        }
+
         fallo(letra)
+    }
+
+    //  Un borrón: tres veces la letra que te sobró, cayendo por la grieta.
+    //  Corto a propósito — es un castigo, no una condena.
+    function _borron(letra) {
+        if (!_hayHueco() || circulo.indexOf(letra) < 0)
+            return
+        const muestra = letra + letra + letra
+        palabras.append({
+            pid: _siguienteId++, texto: muestra, muestra: muestra,
+            esperado: muestra, tipo: "borron", escrito: 0, manchas: 0,
+            carril: _carrilLibre(), nacido: reloj, duracion: _duracionSegura()
+        })
     }
 
     //  Se rinde el objetivo actual. Cuesta el combo, que es justo: cambiar de
@@ -913,10 +884,12 @@ QtObject {
         salaActiva = sala.id
 
         if (sala.id === "fragua") {
-            //  Se lleva TODAS por delante. Media medida aquí no vale: la
-            //  fragua compite con una runa, y «te limpio una» no compra a
-            //  nadie.
-            corruptas = ({})
+            //  Barre la isla: todo lo que estaba cayendo se apaga. No cuenta
+            //  como sellado —no es un acierto, es un respiro— pero te deja la
+            //  capa nueva limpia. Compite con una runa, así que tiene que
+            //  valer la pena de verdad.
+            palabras.clear()
+            objetivo = -1
             _cerrarRuta()
         } else if (sala.id === "mercado") {
             _ofrecerRunas(3)
@@ -939,14 +912,10 @@ QtObject {
         runas = runas.concat([ofertaRunas[i].id])
 
         if (i === maldita) {
-            //  El precio de la maldita: una tecla de tu círculo, al azar y de
-            //  las que todavía te funcionan.
-            const sanas = []
-            for (let k = 0; k < circulo.length; ++k)
-                if (!estaCorrupta(circulo[k]))
-                    sanas.push(circulo[k])
-            if (sanas.length)
-                _corromper(sanas[Math.floor(azar() * sanas.length)])
+            //  El precio: la grieta se abre. Directo, se ve en la barra al
+            //  momento y no te quita capacidad — que era el problema del
+            //  precio anterior, romperte una tecla.
+            fisura = Math.min(0.95, fisura + 0.15)
         }
 
         _cerrarRuta()
@@ -974,7 +943,7 @@ QtObject {
         nemesisFuera = true
         palabras.append({
             pid: _siguienteId++, texto: nemesis, muestra: muestra,
-            esperado: esperado, tipo: "nemesis", escrito: 0,
+            esperado: esperado, tipo: "nemesis", escrito: 0, manchas: 0,
             carril: _carrilLibre(),
             nacido: reloj, duracion: _duracionSegura()
         })
@@ -991,10 +960,7 @@ QtObject {
         //  notaría, y un guardián que no se nota no es un guardián.
         permuta = ({})
         if (g.id === "doscaras") {
-            const sanas = []
-            for (let k = 0; k < circulo.length; ++k)
-                if (!estaCorrupta(circulo[k]))
-                    sanas.push(circulo[k])
+            const sanas = circulo.split("")
             if (sanas.length >= 2) {
                 const a = sanas.splice(Math.floor(azar() * sanas.length), 1)[0]
                 const b = sanas.splice(Math.floor(azar() * sanas.length), 1)[0]

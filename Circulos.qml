@@ -22,7 +22,7 @@ QtObject {
     //  `dano`        cuánto abre la fisura cada fuga (0.2 = cinco fugas).
     //  `ritmo`       multiplica la espera entre brotes; menos es más rápido.
     //  `tartamudo`   cada letra se teclea dos veces.
-    //  `rotasAlNacer` teclas que empiezan ya corrompidas.
+    //  `fisuraAlNacer` con cuánta grieta abierta empiezas.
     //  `tinta`       con cuánta empiezas.
     readonly property var lista: [
         {
@@ -30,7 +30,7 @@ QtObject {
             nombre: "El Vocalista",
             desc: "Pocas letras y palabras cortas, pero salen sin descanso",
             letras: "aeiouslnrmtcd",
-            dano: 0.2, ritmo: 0.72, tartamudo: false, rotasAlNacer: 0, tinta: 2,
+            dano: 0.2, ritmo: 0.72, tartamudo: false, fisuraAlNacer: 0, tinta: 2,
             emblema: "circulos/s00.png"
         },
         {
@@ -38,7 +38,7 @@ QtObject {
             nombre: "El Escriba",
             desc: "El alfabeto entero desde el principio, y la mitad de margen",
             letras: circulos.completo,
-            dano: 0.4, ritmo: 1.0, tartamudo: false, rotasAlNacer: 0, tinta: 2,
+            dano: 0.4, ritmo: 1.0, tartamudo: false, fisuraAlNacer: 0, tinta: 2,
             emblema: "circulos/s02.png"
         },
         {
@@ -46,15 +46,15 @@ QtObject {
             nombre: "El Tartamudo",
             desc: "Cada letra, dos veces. El doble de pulsaciones por palabra",
             letras: "aeioustrnlmdcpbg",
-            dano: 0.2, ritmo: 1.25, tartamudo: true, rotasAlNacer: 0, tinta: 2,
+            dano: 0.2, ritmo: 1.25, tartamudo: true, fisuraAlNacer: 0, tinta: 2,
             emblema: "circulos/s03.png"
         },
         {
             id: "ceniza",
             nombre: "La Ceniza",
-            desc: "Empiezas con tres teclas ya rotas, y con tinta de sobra",
+            desc: "Empiezas con la grieta medio abierta, y con tinta de sobra",
             letras: "aeioustrnlmdcpbg",
-            dano: 0.2, ritmo: 1.0, tartamudo: false, rotasAlNacer: 3, tinta: 5,
+            dano: 0.2, ritmo: 1.0, tartamudo: false, fisuraAlNacer: 0.4, tinta: 5,
             //  Presta el montón de ceniza de la hoja de runas: es exactamente
             //  lo que la clase cuenta, y generar otro sprite igual sobraba.
             emblema: "runas/s02.png"

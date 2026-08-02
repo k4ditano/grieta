@@ -30,6 +30,11 @@ Item {
     readonly property string resto: muestra.substring(escrito)
     readonly property bool espejo: tipo === "espejo"
     readonly property bool nemesis: tipo === "nemesis"
+    //  Un borrón: lo que cae cuando fallas una letra que no empieza nada. Se
+    //  distingue para que se lea como consecuencia de un error y no como un
+    //  enemigo más, que si no parece que el juego hace trampas.
+    readonly property bool borron: tipo === "borron"
+    property int manchas: 0
     //  El aviso de que queda poco: pasado el 75% del recorrido, late.
     readonly property bool urgente: avance > 0.75
 
@@ -64,10 +69,12 @@ Item {
         color: palabra.esObjetivo ? K4.Tema.superficieAlta : K4.Tema.superficie
         opacity: palabra.esObjetivo ? 0.97 : 0.78
 
-        border.width: palabra.nemesis ? 2 : palabra.esObjetivo ? 1 : 0
+        border.width: palabra.nemesis ? 2
+            : (palabra.esObjetivo || palabra.borron) ? 1 : 0
         //  El némesis se distingue de todo lo demás: es TU palabra, la que
         //  dejaste escapar, y tiene que reconocerse desde la otra punta.
-        border.color: palabra.nemesis ? K4.Tema.rojo : K4.Tema.azul
+        border.color: palabra.nemesis ? K4.Tema.rojo
+            : palabra.borron ? K4.Tema.apagado : K4.Tema.azul
 
         Behavior on color { ColorAnimation { duration: 130 } }
 
@@ -98,7 +105,11 @@ Item {
             K4.Etiqueta {
                 text: palabra.resto
                 color: palabra.urgente ? K4.Tema.rojo
-                    : palabra.nemesis ? K4.Tema.amarillo : K4.Tema.tinta
+                    : palabra.nemesis ? K4.Tema.amarillo
+                    //  Manchada por tus fallos: se tiñe, para que se vea que
+                    //  ha crecido y por qué.
+                    : palabra.manchas > 0 ? K4.Tema.amarillo
+                    : palabra.borron ? K4.Tema.apagado : K4.Tema.tinta
                 font.pixelSize: 21
                 font.weight: palabra.esObjetivo ? Font.DemiBold : Font.Normal
             }

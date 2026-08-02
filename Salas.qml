@@ -19,7 +19,7 @@ QtObject {
 
     readonly property var lista: [
         { id: "fragua", nombre: "La Fragua",
-          desc: "Limpia TODAS las teclas rotas",
+          desc: "Barre de un golpe todo lo que está cayendo",
           emblema: "circulos/s04.png" },
         { id: "mercado", nombre: "El Mercado",
           desc: "Elige una runa de tres",

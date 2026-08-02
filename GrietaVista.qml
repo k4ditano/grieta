@@ -75,13 +75,13 @@ K4.Aparicion {
                 return
             }
 
-            //  El Tab limpia una tecla rota. Es la única tecla del teclado que
-            //  no forma parte de ninguna palabra, así que puede tener una
-            //  función sin robársela a nadie — y se alcanza con el meñique sin
-            //  soltar la postura, que en un juego de tecleo importa.
+            //  TAB gasta tinta y sella la más urgente: el botón de pánico.
+            //  Es la única tecla que no forma parte de ninguna palabra, así
+            //  que puede tener función sin robársela a nadie — y se alcanza
+            //  con el meñique sin soltar la postura, que aquí importa.
             if (ev.key === Qt.Key_Tab || ev.key === Qt.Key_Backtab) {
                 if (vista.sim.jugando && !vista.sim.pausada)
-                    vista.sim.limpiar()
+                    vista.sim.gastarTinta()
                 ev.accepted = true
                 return
             }
@@ -248,6 +248,7 @@ K4.Aparicion {
                 muestra: model.muestra
                 escrito: model.escrito
                 tipo: model.tipo
+                manchas: model.manchas
 
                 //  La suya, congelada al nacer — no `sim.caidaMs`, que es
                 //  un enlace vivo y cambiaba la animación en vuelo.
@@ -324,7 +325,6 @@ K4.Aparicion {
         height: vista.altoTeclado
         y: vista.arriba ? parent.height - vista.altoTeclado : 0
         circulo: vista.sim.circulo
-        corruptas: vista.sim.corruptas
         ultima: vista.ultimaTecla
         aOscuras: vista.sim.guardian === "farolero"
     }
@@ -372,11 +372,9 @@ K4.Aparicion {
         }
 
         K4.Etiqueta {
-            visible: vista.sim.rotas > 0
-            text: vista.sim.tinta > 0
-                ? K4.Idioma.f("%1 rotas cortan la racha · TAB limpia", vista.sim.rotas)
-                : K4.Idioma.f("%1 rotas cortan la racha · sin tinta", vista.sim.rotas)
-            color: vista.sim.tinta > 0 ? K4.Tema.apagado : K4.Tema.rojo
+            visible: vista.sim.tinta > 0
+            text: K4.Idioma.t("TAB sella la de abajo")
+            color: K4.Tema.apagado
             font.pixelSize: 10
         }
     }

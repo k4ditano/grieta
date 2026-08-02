@@ -17,10 +17,16 @@ Llega apagado. Se enciende en Ajustes, viendo antes qué permisos pide —
 ## Cómo se juega
 
 Escribes. La primera letra engancha una palabra y el resto la sella. Si te
-equivocas de letra, **esa tecla se rompe**: deja de responder hasta que gastes
-tinta (`TAB`) en arreglarla. Y si una palabra llega abajo no se borra: **sale
-de la barra** y se pone a vagar por encima de tus ventanas hasta que la caces
-escribiéndola. Cazarla es la única forma de cerrar grieta.
+equivocas de letra, **esa letra se dobla ahí mismo** y tienes que escribirla
+otra vez: tu error se convierte en trabajo, inmediato y donde estás mirando. Y
+si una palabra llega abajo no se borra: **sale de la barra** y se pone a vagar
+por encima de tus ventanas hasta que la caces escribiéndola. Cazarla es la
+única forma de cerrar grieta.
+
+El juego nunca te quita letras. Se probó —romper la tecla que fallabas— y era
+un callejón sin salida: sin poder escribirla no sellabas, sin sellar no había
+con qué arreglarla, y perdías sin poder hacer nada. Un juego de tecleo va de
+fluidez; cortarte los dedos se pelea con eso.
 
 Cinco fugas y la grieta se abre del todo.
 
@@ -28,7 +34,7 @@ Cinco fugas y la grieta se abre del todo.
 |---|---|
 | `←` `→` `1`-`4` | elegir |
 | `Enter` | empezar · bajar de capa |
-| `TAB` | gastar tinta y arreglar una tecla rota |
+| `TAB` | gastar tinta y sellar de golpe la palabra más urgente |
 | `Retroceso` | soltar la palabra que estás escribiendo |
 | `ESC` | pausa · otra vez, salir |
 | `C` | copiar el resultado al portapapeles |
@@ -41,14 +47,15 @@ cortas sin descanso; El Escriba el alfabeto entero y la mitad de margen; El
 Tartamudo teclea cada letra dos veces; La Ceniza empieza con tres teclas ya
 rotas y tinta de sobra.
 
-**Una ruta.** Al cerrar capa eliges entre dos salas: la Fragua limpia todas tus
-teclas rotas, el Mercado da una runa de tres, el Nido paga tinta y cobra
-velocidad, la Sala del Eco lo hace todo valer doble. Nunca puedes tenerlo todo.
+**Una ruta.** Al cerrar capa eliges entre dos salas: la Fragua barre de un
+golpe todo lo que está cayendo, el Mercado da una runa de tres, el Nido paga
+tinta y cobra velocidad, la Sala del Eco lo hace todo valer doble. Nunca
+puedes tenerlo todo.
 
 **Doce runas**, y ninguna es un porcentaje escondido: la palabra ya viene
-empezada, las teclas rotas vuelven a escribir a cambio de cortarte la racha,
-encadenar por la última letra sellada da racha de más. Algunas vienen
-**malditas**: te las llevas rompiéndote una tecla.
+empezada, tus fallos dejan de manchar, encadenar por la última letra sellada
+da racha de más. Algunas vienen **malditas**: te las llevas a cambio de que la
+grieta se abra un poco.
 
 **Seis guardianes**, cada tres capas, asomando por encima de la barra. Ninguno
 tiene «más vida y ya»: te cambian dos teclas de sitio, te apagan el teclado,

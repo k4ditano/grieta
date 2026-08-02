@@ -27,7 +27,7 @@ QtObject {
           desc: "Las palabras largas cierran grieta",
           emblema: "runas/s01.png" },
         { id: "ceniza", nombre: "Ceniza",
-          desc: "Tus teclas rotas dejan de cortarte la racha",
+          desc: "Tus fallos ya no manchan la palabra",
           emblema: "runas/s02.png" },
         { id: "tintero", nombre: "Tintero",
           desc: "Tinta cada dos selladas en vez de cada tres",

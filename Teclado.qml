@@ -1,9 +1,9 @@
 //  Tu teclado, dibujado y sufriendo.
 //
-//  Es la interfaz y es el espectáculo a la vez: se ve qué teclas tienes
-//  despiertas, cuál acabas de pulsar y cuáles has roto tú mismo. Las
-//  corruptas salen agrietadas y humeando, y esa mancha roja creciendo en tu
-//  propia fila de teclas es la mejor manera de contarte que estás perdiendo.
+//  Se ve qué teclas tienes despiertas —que es tu clase— y cuál acabas de
+//  pulsar. Aquí vivían las teclas rotas, agrietadas y humeando; se fueron con
+//  la mecánica que las rompía, porque quitarle letras a quien está tecleando
+//  se pelea con el verbo del juego.
 //
 //  Distribución española, que es la que hay debajo de los dedos: con la ñ.
 
@@ -14,7 +14,6 @@ Item {
     id: teclado
 
     property string circulo: ""
-    property var corruptas: ({})
     property string ultima: ""
     //  El Farolero lo apaga entero: se teclea a ciegas mientras esté delante.
     property bool aOscuras: false
@@ -52,23 +51,17 @@ Item {
                         readonly property string letra: fila.modelData[index]
                         readonly property bool despierta:
                             teclado.circulo.indexOf(letra) >= 0
-                        readonly property bool rota:
-                            teclado.corruptas[letra] !== undefined
                         readonly property bool pulsada: teclado.ultima === letra
 
                         width: teclado.lado
                         height: teclado.lado
                         radius: 4
 
-                        //  Rota, no muerta: escribe, pero te corta la racha.
-                        //  Por eso se pinta magullada y no apagada — apagarla
-                        //  decía «esta tecla no existe», que era mentira.
-                        color: rota ? Qt.rgba(0.42, 0.16, 0.16, 0.85)
-                            : pulsada ? K4.Tema.azul
+                        color: pulsada ? K4.Tema.azul
                             : despierta ? K4.Tema.superficieAlta
                             : K4.Tema.superficie
 
-                        opacity: despierta || rota ? 1 : 0.35
+                        opacity: despierta ? 1 : 0.35
 
                         Behavior on color { ColorAnimation { duration: 90 } }
 
@@ -77,38 +70,9 @@ Item {
                             text: tecla.letra
                             font.pixelSize: 12
                             font.weight: tecla.pulsada ? Font.Bold : Font.Normal
-                            color: tecla.rota ? K4.Tema.rojo
-                                : tecla.despierta ? K4.Tema.tinta : K4.Tema.tenue
+                            color: tecla.despierta ? K4.Tema.tinta : K4.Tema.tenue
                         }
 
-                        //  La raja de la tecla, cruzándola.
-                        Rectangle {
-                            visible: tecla.rota
-                            anchors.centerIn: parent
-                            width: parent.width * 0.9
-                            height: 1
-                            rotation: 38
-                            color: K4.Tema.rojo
-                            opacity: 0.9
-                        }
-
-                        //  Y el humo, que es lo que la hace verse rota de lejos.
-                        Rectangle {
-                            visible: tecla.rota
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.bottom: parent.top
-                            width: 3
-                            height: 7
-                            radius: 2
-                            color: K4.Tema.rojo
-
-                            SequentialAnimation on opacity {
-                                running: tecla.rota
-                                loops: Animation.Infinite
-                                NumberAnimation { from: 0.55; to: 0; duration: 900 }
-                                PauseAnimation { duration: 160 }
-                            }
-                        }
                     }
                 }
             }
