@@ -535,17 +535,19 @@ QtObject {
                         _sellar(pid, d.enFuga)
                     return true
                 }
-                //  Fallar SUELTA la palabra. Se descubrió jugando y era el
-                //  peor fallo que ha tenido esto: al errar una letra el
-                //  objetivo se quedaba enganchado, así que todo lo que
-                //  tecleabas después iba contra una palabra que ya no querías
-                //  y cada tecla se rompía a su vez. Dos palabras mal escritas
-                //  dejaban seis teclas muertas y no había forma de entender
-                //  por qué. Ahora un error te devuelve la libertad: la
-                //  siguiente letra vuelve a elegir.
-                _errar(letra)
+                //  La letra no sigue a esta palabra. ANTES de dar el fallo
+                //  por bueno, se mira si empieza OTRA: casi siempre eso es
+                //  justo lo que estabas haciendo —dejar la de arriba e ir a
+                //  por la de abajo, que corre más peligro—, y castigarlo era
+                //  absurdo. Sin esto te quedabas clavado en una palabra que
+                //  ya no querías y cambiar de objetivo costaba una tecla rota.
                 modelo.setProperty(i, "escrito", Math.min(arranque, largo - 1))
                 objetivo = -1
+                if (_engancharPorLetra(letra))
+                    return true
+
+                //  Y si no empieza ninguna, entonces sí: te has equivocado.
+                _errar(letra)
                 return false
             }
         }
@@ -553,9 +555,20 @@ QtObject {
         //  Sin objetivo, la letra elige: de las que empiezan por ella, la más
         //  vieja, que es la que está más cerca de escaparse. Perseguir la más
         //  urgente es lo que uno quiere hacer, así que que lo haga sola.
-        //  Las de la isla mandan sobre las fugadas: lo que está cayendo es lo
-        //  urgente, y una fugada no se te lleva la letra que necesitabas para
-        //  lo que tienes encima.
+        return _engancharPorLetra(letra) || _fallar(letra)
+    }
+
+    function _fallar(letra) {
+        _errar(letra)
+        return false
+    }
+
+    //  Engancha la primera palabra que EMPIECE por esa letra. Las de la isla
+    //  mandan sobre las fugadas —lo que está cayendo es lo urgente, y una
+    //  fugada no debe robarte la letra que necesitabas para lo que tienes
+    //  encima— y dentro de cada una gana la más vieja, que es la que está más
+    //  abajo y más cerca de escaparse.
+    function _engancharPorLetra(letra) {
         let modelo = null
         let elegido = -1
         for (let i = 0; i < palabras.count; ++i) {
@@ -575,12 +588,11 @@ QtObject {
             }
         }
 
-        if (elegido < 0) {
-            _errar(letra)
+        if (elegido < 0)
             return false
-        }
 
-        //  Copiado antes de tocar el modelo, por lo mismo de arriba.
+        //  Copiado antes de tocar el modelo: `get()` devuelve una referencia
+        //  viva y después de `setProperty` ya valdría lo nuevo.
         const p = modelo.get(elegido)
         const pid = p.pid
         const largo = p.esperado.length

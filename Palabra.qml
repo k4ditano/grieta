@@ -46,8 +46,8 @@ Item {
 
     Rectangle {
         id: fondo
-        width: fila.width + 20
-        height: fila.height + 12
+        width: fila.width + 26
+        height: fila.height + 14
         radius: 9
         color: palabra.esObjetivo ? K4.Tema.superficieAlta : K4.Tema.superficie
         opacity: palabra.esObjetivo ? 0.97 : 0.78
@@ -79,7 +79,7 @@ Item {
             K4.Etiqueta {
                 text: palabra.hecho
                 color: K4.Tema.verde
-                font.pixelSize: 17
+                font.pixelSize: 21
                 font.weight: Font.DemiBold
             }
 
@@ -87,7 +87,7 @@ Item {
                 text: palabra.resto
                 color: palabra.urgente ? K4.Tema.rojo
                     : palabra.nemesis ? K4.Tema.amarillo : K4.Tema.tinta
-                font.pixelSize: 17
+                font.pixelSize: 21
                 font.weight: palabra.esObjetivo ? Font.DemiBold : Font.Normal
             }
         }

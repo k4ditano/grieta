@@ -19,8 +19,8 @@ K4.Aparicion {
     readonly property var sim: plugin.sim
     readonly property bool arriba: K4.Isla.posicion === "arriba"
 
-    readonly property int altoFisura: 30
-    readonly property int altoTeclado: 78
+    readonly property int altoFisura: 34
+    readonly property int altoTeclado: 96
     //  Por dónde salen y hasta dónde llegan. Cruzar la isla entera es el
     //  tiempo que tienes para escribir.
     readonly property real salida: arriba ? altoFisura : height - altoFisura
@@ -372,6 +372,10 @@ K4.Aparicion {
         anchors.fill: parent
         visible: vista.sim.enRuta
         color: Qt.rgba(0, 0, 0, 0.9)
+        //  Con las esquinas rectas, este velo tapaba las de la isla y la
+        //  barra se veía CUADRADA justo en la pantalla que más se mira. Es la
+        //  misma cuenta que hace el host para la silueta.
+        radius: Math.min(32, height / 2)
 
         Ruta {
             anchors.fill: parent

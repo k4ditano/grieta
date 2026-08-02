@@ -27,8 +27,13 @@ K4.Plugin {
     //  La isla CRECE en sobrecarga. Es el aviso más honesto que se puede dar
     //  de que has entrado en algo: no un cartel, la propia barra haciéndose
     //  más grande delante de ti.
-    islandWidth: sim.sobrecarga ? 1040 : 900
-    islandHeight: sim.sobrecarga ? 400 : 320
+    //  Grande a propósito. Se probó en 900x320 y las palabras se leían
+    //  justas —y con el Tartamudo o el Escriba Ciego, que doblan letras o las
+    //  ponen del revés, no se leían—. En un juego de tecleo, no poder LEER no
+    //  es dificultad, es un defecto. El tope de alto lo pone la barra
+    //  (K4.Tema.altoMaximo, 880 hoy), así que aquí sobra sitio.
+    islandWidth: sim.sobrecarga ? 1280 : 1120
+    islandHeight: sim.sobrecarga ? 520 : 430
 
     //  El teclado entero mientras está abierto. En cualquier otro módulo esto
     //  sería de más; aquí es literalmente el mando. La vista se queda el ESC

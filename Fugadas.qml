@@ -118,14 +118,14 @@ K4.Ventana {
                     K4.Etiqueta {
                         text: suelta.hecho
                         color: K4.Tema.verde
-                        font.pixelSize: 15
+                        font.pixelSize: 18
                         font.weight: Font.DemiBold
                     }
 
                     K4.Etiqueta {
                         text: suelta.resto
                         color: K4.Tema.rojo
-                        font.pixelSize: 15
+                        font.pixelSize: 18
                     }
                 }
 

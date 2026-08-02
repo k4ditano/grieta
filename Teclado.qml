@@ -20,7 +20,7 @@ Item {
     property bool aOscuras: false
 
     readonly property var filas: ["qwertyuiop", "asdfghjklñ", "zxcvbnm"]
-    readonly property real lado: Math.max(14, Math.min(22, width / 13))
+    readonly property real lado: Math.max(16, Math.min(28, width / 13))
 
     Column {
         anchors.centerIn: parent
@@ -72,7 +72,7 @@ Item {
                         K4.Etiqueta {
                             anchors.centerIn: parent
                             text: tecla.letra
-                            font.pixelSize: 10
+                            font.pixelSize: 12
                             font.weight: tecla.pulsada ? Font.Bold : Font.Normal
                             color: tecla.rota ? K4.Tema.rojo
                                 : tecla.despierta ? K4.Tema.tinta : K4.Tema.tenue
