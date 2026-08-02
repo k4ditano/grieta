@@ -44,8 +44,8 @@ Cinco fugas y la grieta se abre del todo.
 **Cuatro círculos.** Tu personaje es tu teclado: no cambia una estadística,
 cambian las teclas que tienes. El Vocalista tiene pocas letras y palabras
 cortas sin descanso; El Escriba el alfabeto entero y la mitad de margen; El
-Tartamudo teclea cada letra dos veces; La Ceniza empieza con tres teclas ya
-rotas y tinta de sobra.
+Tartamudo teclea cada letra dos veces; La Ceniza empieza con la grieta ya
+medio abierta y tinta de sobra.
 
 **Una ruta.** Al cerrar capa eliges entre dos salas: la Fragua barre de un
 golpe todo lo que está cayendo, el Mercado da una runa de tres, el Nido paga
