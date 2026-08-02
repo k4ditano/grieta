@@ -28,12 +28,22 @@ un callejón sin salida: sin poder escribirla no sellabas, sin sellar no había
 con qué arreglarla, y perdías sin poder hacer nada. Un juego de tecleo va de
 fluidez; cortarte los dedos se pelea con eso.
 
-Cinco fugas y la grieta se abre del todo.
+Cada capa te pide **puntos** y te da un **tiempo**. Una palabra vale por su
+largo multiplicado por tu racha, así que ir a por la larga que está a punto de
+escaparse en vez de por la corta cómoda es una decisión de verdad — de las que
+se toman con los dedos y no en un menú. Llegas al objetivo y bajas de capa sin
+que nada pare; lo que te sobre de reloj se convierte en puntos.
+
+Se pierde de dos maneras: cinco fugas abren la grieta del todo, o se acaba el
+tiempo.
+
+**Cada tres capas hay un guardián**, y ahí la capa no se pasa por puntos: se
+pasa por él.
 
 | | |
 |---|---|
-| `←` `→` `1`-`4` | elegir |
-| `Enter` | empezar · bajar de capa |
+| `←` `→` `1`-`4` | elegir clase |
+| `Enter` | empezar |
 | `TAB` | gastar tinta y sellar de golpe la palabra más urgente |
 | `Retroceso` | soltar la palabra que estás escribiendo |
 | `ESC` | pausa · otra vez, salir |
@@ -47,15 +57,10 @@ cortas sin descanso; El Escriba el alfabeto entero y la mitad de margen; El
 Tartamudo teclea cada letra dos veces; La Ceniza empieza con la grieta ya
 medio abierta y tinta de sobra.
 
-**Una ruta.** Al cerrar capa eliges entre dos salas: la Fragua barre de un
-golpe todo lo que está cayendo, el Mercado da una runa de tres, el Nido paga
-tinta y cobra velocidad, la Sala del Eco lo hace todo valer doble. Nunca
-puedes tenerlo todo.
-
-**Doce runas**, y ninguna es un porcentaje escondido: la palabra ya viene
-empezada, tus fallos dejan de manchar, encadenar por la última letra sellada
-da racha de más. Algunas vienen **malditas**: te las llevas a cambio de que la
-grieta se abra un poco.
+**Nueve logros**, que es lo único que sobrevive a una partida: se consiguen
+jugando bien y no jugando mucho — quince encadenadas sin fallar, una capa
+entera sin un solo error, cazar cinco fugadas, ajustarle las cuentas a tu
+némesis.
 
 **Seis guardianes**, cada tres capas, asomando por encima de la barra. Ninguno
 tiene «más vida y ya» y ninguno te toca el teclado: apagan media grieta para

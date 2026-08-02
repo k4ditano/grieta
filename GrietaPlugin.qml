@@ -136,6 +136,15 @@ K4.Plugin {
             K4.Isla.colocar("grieta", capa % 2 === 0 ? 0.28 : 0.72, 1600)
         }
 
+        //  Un logro se anuncia y se guarda al momento: si esperara al final
+        //  de la partida, un cierre a destiempo se lo llevaría.
+        function onLogro(id) {
+            self.ultimoLogro = self.sim.catalogoLogros.porId(id)
+            self.apuntar()
+            avisoLogro.restart()
+            K4.Isla.efecto("grieta", "empujon", 0.5)
+        }
+
         function onGuardianLlego(id) {
             self.ultimoGuardian = self.sim.catalogoGuardianes.porId(id)
             self.guardianCayendo = false
@@ -292,6 +301,12 @@ K4.Plugin {
     }
 
     property bool copiado: false
+    property var ultimoLogro: null
+
+    property Timer avisoLogro: Timer {
+        interval: 3200
+        onTriggered: self.ultimoLogro = null
+    }
 
     property Timer borrarAviso: Timer {
         interval: 2200
@@ -345,6 +360,8 @@ K4.Plugin {
                 self.sim.fuentesPropias = d.fuentesPropias === true
             if (d.conSonido !== undefined)
                 self.conSonido = d.conSonido === true
+            if (d.logrados !== undefined && d.logrados.length !== undefined)
+                self.sim.logrados = d.logrados
         }
     }
 
@@ -400,7 +417,7 @@ K4.Plugin {
     function apuntar() {
         guardado.guardar({ mejorSelladas: mejorSelladas, mejorCombo: mejorCombo,
                            diaria: sim.diaria, fuentesPropias: sim.fuentesPropias,
-                           conSonido: conSonido })
+                           conSonido: conSonido, logrados: sim.logrados })
     }
 
     K4.Ipc {

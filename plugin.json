@@ -1,7 +1,7 @@
 {
   "id": "grieta",
   "entry": "GrietaPlugin.qml",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "title": "La Grieta",
   "description": "Roguelike de tecleo: sella con el teclado lo que sale por la grieta de la barra",
   "host": ">=1.1.0",

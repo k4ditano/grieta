@@ -34,7 +34,6 @@ K4.Aparicion {
 
     readonly property var clases: sim.circulos.lista
     property int elegida: 0
-    property int cursorRuta: 0
 
     // ── el teclado de verdad ──────────────────────────────────────
     //
@@ -82,31 +81,6 @@ K4.Aparicion {
             if (ev.key === Qt.Key_Tab || ev.key === Qt.Key_Backtab) {
                 if (vista.sim.jugando && !vista.sim.pausada)
                     vista.sim.gastarTinta()
-                ev.accepted = true
-                return
-            }
-
-            //  La ruta se lleva las teclas antes que nadie: mientras se elige
-            //  no se está tecleando palabras, y una letra suelta aquí no debe
-            //  romperte una tecla por accidente.
-            if (vista.sim.enRuta) {
-                const n = vista.sim.pasoRuta === "salas"
-                    ? vista.sim.ofertaSalas.length : vista.sim.ofertaRunas.length
-                if (ev.key === Qt.Key_Left || ev.key === Qt.Key_Up) {
-                    vista.cursorRuta = (vista.cursorRuta + n - 1) % n
-                } else if (ev.key === Qt.Key_Right || ev.key === Qt.Key_Down) {
-                    vista.cursorRuta = (vista.cursorRuta + 1) % n
-                } else if (ev.key >= Qt.Key_1 && ev.key < Qt.Key_1 + n) {
-                    vista.cursorRuta = ev.key - Qt.Key_1
-                } else if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter
-                           || ev.key === Qt.Key_Space) {
-                    const i = vista.cursorRuta
-                    vista.cursorRuta = 0
-                    if (vista.sim.pasoRuta === "salas")
-                        vista.sim.elegirSala(i)
-                    else
-                        vista.sim.elegirRuna(i)
-                }
                 ev.accepted = true
                 return
             }
@@ -257,7 +231,7 @@ K4.Aparicion {
                 //  la onda cruza la pantalla. A esta escala, congelar medio
                 //  segundo se lee como cámara lenta y cuesta una propiedad.
                 detenida: vista.sim.pausada || vista.sim.lento
-                    || vista.sim.enRuta || !vista.sim.jugando
+                    || !vista.sim.jugando
                 esObjetivo: vista.sim.objetivo === model.pid
 
                 //  El carril lo reparte la simulación, que es quien sabe qué
@@ -366,11 +340,11 @@ K4.Aparicion {
 
     // ── el marcador ───────────────────────────────────────────────
     //
-    //  Va en la banda del teclado y no en el campo: ahí estorbaba a las
-    //  palabras que acababan de brotar, y un marcador que tapa lo que tienes
-    //  que leer es peor que no tenerlo.
+    //  Va en la banda del teclado: en el campo estorbaba a las palabras que
+    //  acababan de brotar, y un marcador que tapa lo que hay que leer es peor
+    //  que no tenerlo.
     Row {
-        spacing: 14
+        spacing: 16
         x: 16
         y: vista.arriba
             ? parent.height - vista.altoTeclado / 2 - height / 2
@@ -379,12 +353,24 @@ K4.Aparicion {
         K4.Etiqueta {
             text: K4.Idioma.t("capa ") + vista.sim.capa
             color: K4.Tema.apagado
-            font.pixelSize: 11
+            font.pixelSize: 12
+            font.weight: Font.DemiBold
+        }
+
+        //  Lo que falta para bajar: puntos, o el guardián si hay uno. Con un
+        //  jefe delante los puntos no abren la capa, así que enseñarlos ahí
+        //  sería mentir sobre lo que hay que hacer.
+        K4.Etiqueta {
+            text: vista.sim.enJefe
+                ? K4.Idioma.t("el guardián")
+                : vista.sim.puntosEnCapa + " / " + vista.sim.objetivoCapa
+            color: vista.sim.enJefe ? K4.Tema.rojo : K4.Tema.tinta
+            font.pixelSize: 12
             font.weight: Font.DemiBold
         }
 
         K4.Etiqueta {
-            text: vista.sim.selladas + K4.Idioma.t(" selladas")
+            text: vista.sim.puntos + K4.Idioma.t(" pts")
             color: K4.Tema.tenue
             font.pixelSize: 11
         }
@@ -393,24 +379,46 @@ K4.Aparicion {
             visible: vista.sim.combo > 1
             text: "×" + vista.sim.combo
             color: vista.sim.combo >= 8 ? K4.Tema.amarillo : K4.Tema.verde
-            font.pixelSize: 11
-            font.weight: Font.DemiBold
-        }
-
-        //  La tinta, y el aviso de para qué sirve solo cuando hace falta: con
-        //  el teclado entero no hay nada que limpiar y decírtelo sería ruido.
-        K4.Etiqueta {
-            text: K4.Idioma.t("tinta ") + vista.sim.tinta
-            color: vista.sim.tinta > 0 ? K4.Tema.azul : K4.Tema.tenue
-            font.pixelSize: 11
+            font.pixelSize: 12
             font.weight: Font.DemiBold
         }
 
         K4.Etiqueta {
             visible: vista.sim.tinta > 0
-            text: K4.Idioma.t("TAB sella la de abajo")
-            color: K4.Tema.apagado
-            font.pixelSize: 10
+            text: K4.Idioma.t("tinta ") + vista.sim.tinta
+                + K4.Idioma.t("  · TAB sella la de abajo")
+            color: K4.Tema.azul
+            font.pixelSize: 11
+        }
+    }
+
+    //  El reloj, grande y al otro lado: es la otra forma de perder y tiene
+    //  que verse sin buscarlo. Se pone rojo y late cuando queda poco, que es
+    //  cuando de verdad importa.
+    K4.Etiqueta {
+        id: cuentaAtras
+        readonly property int seg: Math.max(0, Math.ceil(vista.sim.tiempoMs / 1000))
+        readonly property bool apura: seg <= 10
+
+        anchors.right: parent.right
+        anchors.rightMargin: 18
+        y: vista.arriba
+            ? parent.height - vista.altoTeclado / 2 - height / 2
+            : vista.altoTeclado / 2 - height / 2
+
+        text: Math.floor(seg / 60) + ":" + (seg % 60 < 10 ? "0" : "") + (seg % 60)
+        color: apura ? K4.Tema.rojo : K4.Tema.apagado
+        font.pixelSize: apura ? 22 : 18
+        font.weight: Font.DemiBold
+
+        SequentialAnimation on opacity {
+            //  Con el id por delante: dentro de la animación, el nombre a
+            //  secas se busca en el ámbito de la animación y no en el de la
+            //  etiqueta, y salía «apura is not defined».
+            running: cuentaAtras.apura && vista.sim.jugando && !vista.sim.pausada
+            loops: Animation.Infinite
+            NumberAnimation { to: 0.3; duration: 380; easing.type: Easing.InOutSine }
+            NumberAnimation { to: 1; duration: 380; easing.type: Easing.InOutSine }
         }
     }
 
@@ -432,30 +440,41 @@ K4.Aparicion {
         y: sitio ? sitio.y - 11 : 0
     }
 
-    // ── la ruta ───────────────────────────────────────────────────
-    //
-    //  Tapa la isla entera mientras se elige: es la única pausa del juego y
-    //  tiene que verse como tal. El fondo casi opaco deja intuir las palabras
-    //  detrás, congeladas, esperando.
+    //  El aviso de logro: arriba del todo, unos segundos, sin parar nada.
+    //  Un logro que interrumpe la partida deja de ser un premio.
     Rectangle {
-        anchors.fill: parent
-        visible: vista.sim.enRuta
-        color: Qt.rgba(0, 0, 0, 0.9)
-        //  Con las esquinas rectas, este velo tapaba las de la isla y la
-        //  barra se veía CUADRADA justo en la pantalla que más se mira. Es la
-        //  misma cuenta que hace el host para la silueta.
-        radius: Math.min(32, height / 2)
+        visible: vista.plugin.ultimoLogro !== null
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: vista.arriba ? vista.altoFisura + 10
+                        : parent.height - vista.altoFisura - height - 10
+        width: textoLogro.width + 28
+        height: textoLogro.height + 14
+        radius: 10
+        color: K4.Tema.superficieAlta
+        border.width: 1
+        border.color: K4.Tema.amarillo
 
-        Ruta {
-            anchors.fill: parent
-            opciones: vista.sim.pasoRuta === "salas"
-                ? vista.sim.ofertaSalas : vista.sim.ofertaRunas
-            elegida: vista.cursorRuta
-            maldita: vista.sim.pasoRuta === "runas" ? vista.sim.maldita : -1
-            titulo: vista.sim.pasoRuta === "salas"
-                ? K4.Idioma.f("Capa %1 · ¿por dónde bajas?", vista.sim.capa)
-                : K4.Idioma.t("¿Qué te llevas?")
-            pie: K4.Idioma.t("← → para elegir · Enter para bajar")
+        Column {
+            id: textoLogro
+            anchors.centerIn: parent
+            spacing: 1
+
+            K4.Etiqueta {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: vista.plugin.ultimoLogro
+                    ? K4.Idioma.t("LOGRO · ") + vista.plugin.ultimoLogro.nombre : ""
+                color: K4.Tema.amarillo
+                font.pixelSize: 12
+                font.weight: Font.Bold
+            }
+
+            K4.Etiqueta {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: vista.plugin.ultimoLogro
+                    ? K4.Idioma.t(vista.plugin.ultimoLogro.desc) : ""
+                color: K4.Tema.apagado
+                font.pixelSize: 10
+            }
         }
     }
 
@@ -463,11 +482,12 @@ K4.Aparicion {
     Column {
         anchors.centerIn: parent
         spacing: 8
-        visible: (!vista.sim.jugando || vista.sim.pausada) && !vista.sim.enRuta
+        visible: !vista.sim.jugando || vista.sim.pausada
 
         K4.Etiqueta {
             anchors.horizontalCenter: parent.horizontalCenter
             text: vista.sim.pausada ? K4.Idioma.t("En pausa")
+                : vista.sim.porTiempo ? K4.Idioma.t("Se acabó el tiempo")
                 : vista.sim.fisura >= 1 ? K4.Idioma.t("La grieta se abrió")
                 : K4.Idioma.t("La Grieta")
             font.pixelSize: 20
@@ -476,11 +496,19 @@ K4.Aparicion {
 
         K4.Etiqueta {
             anchors.horizontalCenter: parent.horizontalCenter
-            visible: vista.sim.fisura >= 1
-            text: K4.Idioma.f("%1 selladas · mejor racha ×%2",
-                              vista.sim.selladas, vista.sim.mejorCombo)
+            visible: vista.sim.selladas > 0
+            text: K4.Idioma.f("capa %1 · %2 puntos", vista.sim.capa, vista.sim.puntos)
+                + K4.Idioma.f(" · mejor racha ×%1", vista.sim.mejorCombo)
             color: K4.Tema.apagado
             font.pixelSize: 12
+        }
+
+        K4.Etiqueta {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: K4.Idioma.f("logros %1/%2", vista.sim.logrados.length,
+                              vista.sim.catalogoLogros.lista.length)
+            color: K4.Tema.tenue
+            font.pixelSize: 10
         }
 
         K4.Etiqueta {
