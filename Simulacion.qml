@@ -388,6 +388,31 @@ QtObject {
             fuente = fuente.concat(propias)
 
         const filtrada = v.deCirculo(fuente, circulo)
+
+        //  Y la grieta deja de formar palabras con las letras que has roto:
+        //  no como regalo, sino porque lo contrario era enseñarte trabajo que
+        //  no podías hacer. Ahora romperte una tecla ENCOGE tu vocabulario,
+        //  que se nota igual y no bloquea nada.
+        const sanas = []
+        for (let i = 0; i < filtrada.length; ++i) {
+            let vale = true
+            const pal = filtrada[i]
+            for (let j = 0; j < pal.length; ++j) {
+                if (estaCorrupta(vocabulario.llana(pal[j]))) {
+                    vale = false
+                    break
+                }
+            }
+            if (vale)
+                sanas.push(pal)
+        }
+
+        //  Si te has roto media fila y ya casi no queda nada escribible, se
+        //  vuelve a lo que haya: una palabra difícil es mejor que una capa
+        //  vacía, y ahora las rotas escriben, así que no hay trampa.
+        if (sanas.length >= 6)
+            return sanas
+
         //  Un círculo estrecho puede no tener ni una palabra larga. Antes que
         //  dejar la capa vacía, se cae a lo que haya.
         return filtrada.length ? filtrada : v.deCirculo(v.cortas, circulo)
@@ -424,14 +449,21 @@ QtObject {
         if (!lista.length)
             return
 
-        let texto = lista[Math.floor(azar() * lista.length)]
+        //  Mientras tu némesis esté fuera, esa palabra se saca de la bolsa:
+        //  se vieron dos «río» a la vez, una con su borde rojo y otra sin él,
+        //  y dejaba de entenderse cuál era la tuya. Se QUITA de la lista en
+        //  vez de sortear otra vez —que es lo que hacía antes y fallaba con
+        //  vocabularios cortos, donde el segundo intento repetía—, y así
+        //  además el sorteo sigue siendo uno solo y la grieta del día no se
+        //  descuadra.
+        let bolsa = lista
+        if (nemesisFuera && nemesis.length) {
+            const limpia = lista.filter(function (w) { return w !== nemesis })
+            if (limpia.length)
+                bolsa = limpia
+        }
 
-        //  Mientras tu némesis esté fuera, esa palabra no brota normal: se
-        //  vieron dos «río» a la vez, una con su borde rojo y otra sin él, y
-        //  dejaba de entenderse cuál era la tuya. Un intento y a otra cosa:
-        //  insistir aquí sería sesgar el sorteo y romper la grieta del día.
-        if (nemesisFuera && texto === nemesis && lista.length > 1)
-            texto = lista[Math.floor(azar() * lista.length)]
+        const texto = bolsa[Math.floor(azar() * bolsa.length)]
 
         //  El espejo: se enseña del revés y se teclea tal como se ve. El reto
         //  es que la palabra deja de leerse sola — hay que MIRARLA. A partir
@@ -564,16 +596,21 @@ QtObject {
         if (permuta[letra] !== undefined)
             letra = permuta[letra]
 
-        //  Una tecla corrompida no hace NADA. Ni acierta ni falla: está rota,
-        //  y notarlo en los dedos es el castigo. Con la runa Ceniza vuelve a
-        //  escribir, pero te corta la racha cada vez: la ruina deja de ser un
-        //  muro y pasa a ser un peaje, que es una manera muy distinta de
-        //  jugar con el mismo teclado roto.
-        if (estaCorrupta(letra)) {
-            if (!rotasEscriben)
-                return false
+        //  Una tecla rota ESCRIBE, pero te corta la racha.
+        //
+        //  Antes no hacía nada de nada, y eso era un callejón sin salida: una
+        //  palabra con esa letra no se podía sellar, así que se escapaba
+        //  seguro; sin sellar no se gana tinta; y sin tinta no se arregla la
+        //  tecla. El castigo te quitaba la forma de recuperarte, que es el
+        //  peor fallo que puede tener un roguelike. Y con un círculo corto
+        //  —El Vocalista tiene trece letras— bastaban dos teclas para que
+        //  medio vocabulario fuera literalmente imposible.
+        //
+        //  Cortar la racha duele de verdad: la racha es lo que da la
+        //  sobrecarga y lo que dobla el valor de cada palabra. Pero se puede
+        //  seguir jugando, que es la diferencia entre una herida y un muro.
+        if (estaCorrupta(letra) && !rotasEscriben)
             combo = 0
-        }
 
         if (objetivo >= 0) {
             const d = _buscar(objetivo)

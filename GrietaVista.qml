@@ -374,8 +374,8 @@ K4.Aparicion {
         K4.Etiqueta {
             visible: vista.sim.rotas > 0
             text: vista.sim.tinta > 0
-                ? K4.Idioma.f("TAB limpia (%1 rotas)", vista.sim.rotas)
-                : K4.Idioma.f("%1 rotas · sin tinta", vista.sim.rotas)
+                ? K4.Idioma.f("%1 rotas cortan la racha · TAB limpia", vista.sim.rotas)
+                : K4.Idioma.f("%1 rotas cortan la racha · sin tinta", vista.sim.rotas)
             color: vista.sim.tinta > 0 ? K4.Tema.apagado : K4.Tema.rojo
             font.pixelSize: 10
         }

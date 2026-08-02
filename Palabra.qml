@@ -36,11 +36,23 @@ Item {
     width: fondo.width
     height: fondo.height
 
+    //  `paused` y NO `running`, y la diferencia es todo.
+    //
+    //  Una animación de QML no se reanuda al volver a ponerle `running`: se
+    //  REINICIA desde `from`. Parando con `running` —al pausar, al cerrar una
+    //  capa, en la cámara lenta— todas las palabras volvían de golpe a
+    //  `avance 0`: aparecían otra vez arriba, todas juntas y a la misma
+    //  altura, en fila. Se veía a partir de la tercera o cuarta capa, que es
+    //  cuando ya has cerrado unas cuantas, y tiraba por tierra la regla de
+    //  que la de más abajo es la más urgente.
+    //
+    //  `paused` congela donde está y sigue por donde iba.
     NumberAnimation on avance {
         from: 0
         to: 1
         duration: palabra.duracionMs
-        running: !palabra.detenida
+        running: true
+        paused: palabra.detenida
         onFinished: if (!palabra.detenida) palabra.escapo()
     }
 

@@ -60,7 +60,10 @@ Item {
                         height: teclado.lado
                         radius: 4
 
-                        color: rota ? Qt.rgba(0.55, 0.12, 0.12, 0.85)
+                        //  Rota, no muerta: escribe, pero te corta la racha.
+                        //  Por eso se pinta magullada y no apagada — apagarla
+                        //  decía «esta tecla no existe», que era mentira.
+                        color: rota ? Qt.rgba(0.42, 0.16, 0.16, 0.85)
                             : pulsada ? K4.Tema.azul
                             : despierta ? K4.Tema.superficieAlta
                             : K4.Tema.superficie
