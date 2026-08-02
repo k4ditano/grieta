@@ -276,6 +276,51 @@ K4.Aparicion {
         Chispas {}
     }
 
+    Component {
+        id: moldeFlotante
+        Flotante {}
+    }
+
+    //  Revienta una palabra donde esté: sus letras salen despedidas y la
+    //  grieta se las traga. Con racha alta, más lejos y más grandes.
+    function reventar(pid) {
+        const p = vista._dondeEsta(pid)
+        const texto = vista._textoDe(pid)
+        const fuerza = 1 + Math.min(1.4, vista.sim.combo * 0.09)
+        const ch = molde.createObject(restos, {
+            x: p ? p.x : campo.width / 2,
+            y: p ? p.y : (vista.salida + vista.final) / 2,
+            palabra: texto,
+            haciaArriba: vista.arriba,
+            fuerza: fuerza,
+            tono: vista.sim.combo >= 8 ? K4.Tema.amarillo : K4.Tema.verde
+        })
+        if (ch)
+            ch.terminado.connect(function () { ch.destroy() })
+
+        //  Y un golpe a la isla cuando de verdad ha valido la pena.
+        if (vista.sim.combo >= 8)
+            K4.Isla.efecto("grieta", "sacudida", 0.35)
+    }
+
+    function flotar(x, y, texto, tono, tam) {
+        const f = moldeFlotante.createObject(restos, {
+            x: x, y: y, texto: texto, tono: tono, tamano: tam,
+            haciaY: vista.arriba ? -46 : 46
+        })
+        if (f)
+            f.terminado.connect(function () { f.destroy() })
+    }
+
+    function _textoDe(pid) {
+        for (let i = 0; i < campo.children.length; ++i) {
+            const c = campo.children[i]
+            if (c.pid !== undefined && c.pid === pid)
+                return c.muestra
+        }
+        return ""
+    }
+
     function _dondeEsta(pid) {
         for (let i = 0; i < campo.children.length; ++i) {
             const c = campo.children[i]
@@ -289,17 +334,38 @@ K4.Aparicion {
         target: vista.sim
 
         function onSellada(pid) {
-            //  Nacen donde estaba la palabra. Se busca el delegado en vez de
-            //  guardar posiciones en la simulación, que no sabe de píxeles.
+            vista.reventar(pid)
+        }
+
+        function onSelladaEnFuga(pid) {
+            vista.reventar(pid)
+        }
+
+        //  El número que ganas, saltando de donde estaba la palabra.
+        function onGanaste(pid, ptos) {
             const p = vista._dondeEsta(pid)
-            const ch = molde.createObject(restos, {
-                x: p ? p.x : campo.width / 2,
-                y: p ? p.y : (vista.salida + vista.final) / 2,
-                haciaArriba: vista.arriba,
-                tono: K4.Tema.verde
-            })
-            if (ch)
-                ch.terminado.connect(function () { ch.destroy() })
+            const alto = vista.sim.combo >= 8
+            vista.flotar(p ? p.x : campo.width / 2,
+                         p ? p.y : (vista.salida + vista.final) / 2,
+                         (vista.sim.combo > 1 ? "×" + vista.sim.combo + "  " : "")
+                             + "+" + ptos,
+                         alto ? K4.Tema.amarillo : K4.Tema.verde,
+                         alto ? 24 : 18)
+        }
+
+        //  Y el que pierdes, en el reloj, que es de donde sale.
+        function onCastigo(seg) {
+            vista.flotar(vista.width - 90,
+                         vista.arriba ? vista.height - vista.altoTeclado - 10 : 60,
+                         "−" + seg + " s", K4.Tema.rojo, 22)
+        }
+
+        function onSobroTiempo(ptos) {
+            if (ptos <= 0)
+                return
+            vista.flotar(vista.width - 120,
+                         vista.arriba ? vista.height - vista.altoTeclado - 40 : 90,
+                         K4.Idioma.t("tiempo +") + ptos, K4.Tema.azul, 20)
         }
 
         function onEscapada(pid) {
@@ -344,8 +410,8 @@ K4.Aparicion {
     //  acababan de brotar, y un marcador que tapa lo que hay que leer es peor
     //  que no tenerlo.
     Row {
-        spacing: 16
-        x: 16
+        spacing: 12
+        x: 14
         y: vista.arriba
             ? parent.height - vista.altoTeclado / 2 - height / 2
             : vista.altoTeclado / 2 - height / 2
@@ -369,24 +435,63 @@ K4.Aparicion {
             font.weight: Font.DemiBold
         }
 
+        //  Y la barra llenándose. Un número que sube se lee; una barra que se
+        //  llena se SIENTE, y sentir que queda poco es lo que hace apretar.
+        K4.Medidor {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: !vista.sim.enJefe
+            width: 120
+            grosor: 7
+            minimo: 3
+            valor: vista.sim.puntosEnCapa
+            maximo: Math.max(1, vista.sim.objetivoCapa)
+            tono: vista.sim.puntosEnCapa >= vista.sim.objetivoCapa * 0.75
+                ? K4.Tema.amarillo : K4.Tema.verde
+        }
+
         K4.Etiqueta {
+            anchors.verticalCenter: parent.verticalCenter
             text: vista.sim.puntos + K4.Idioma.t(" pts")
             color: K4.Tema.tenue
             font.pixelSize: 11
         }
 
+        //  La racha manda en el marcador: es el número que más cambia lo que
+        //  vale una palabra, así que es el que hay que estar mirando. Crece
+        //  con ella y da un tirón cada vez que sube.
         K4.Etiqueta {
+            id: racha
+            anchors.verticalCenter: parent.verticalCenter
             visible: vista.sim.combo > 1
             text: "×" + vista.sim.combo
             color: vista.sim.combo >= 8 ? K4.Tema.amarillo : K4.Tema.verde
-            font.pixelSize: 12
-            font.weight: Font.DemiBold
+            font.pixelSize: Math.min(30, 14 + vista.sim.combo)
+            font.weight: Font.Bold
+
+            Connections {
+                target: vista.sim
+                function onComboChanged() {
+                    if (vista.sim.combo > 1)
+                        tiron.restart()
+                }
+            }
+
+            SequentialAnimation {
+                id: tiron
+                NumberAnimation { target: racha; property: "scale"
+                                  to: 1.4; duration: 90 }
+                NumberAnimation { target: racha; property: "scale"
+                                  to: 1; duration: 160; easing.type: Easing.OutBack }
+            }
         }
 
+        //  Corto: con la barra del objetivo, la fila llegaba hasta el
+        //  teclado dibujado y se montaba encima. Lo que hace TAB se dice en
+        //  la pausa, que es donde hay sitio para leerlo.
         K4.Etiqueta {
+            anchors.verticalCenter: parent.verticalCenter
             visible: vista.sim.tinta > 0
             text: K4.Idioma.t("tinta ") + vista.sim.tinta
-                + K4.Idioma.t("  · TAB sella la de abajo")
             color: K4.Tema.azul
             font.pixelSize: 11
         }
@@ -438,6 +543,42 @@ K4.Aparicion {
         //  estela se APUNTA sola al moverse: por eso no lleva Behavior.
         x: sitio ? sitio.x + 6 : 0
         y: sitio ? sitio.y - 11 : 0
+    }
+
+    //  CAPA N, a lo grande y medio segundo. Es la recompensa de haber
+    //  llegado, y tiene que verse desde la otra punta del escritorio.
+    K4.Etiqueta {
+        id: cartelCapa
+        anchors.centerIn: parent
+        text: K4.Idioma.t("CAPA ") + vista.sim.capa
+        color: K4.Tema.amarillo
+        font.pixelSize: 54
+        font.weight: Font.Bold
+        opacity: 0
+        scale: 0.7
+
+        Connections {
+            target: vista.sim
+            function onCapaCerrada(capa) { entradaCapa.restart() }
+        }
+
+        SequentialAnimation {
+            id: entradaCapa
+            ParallelAnimation {
+                NumberAnimation { target: cartelCapa; property: "opacity"
+                                  to: 1; duration: 140 }
+                NumberAnimation { target: cartelCapa; property: "scale"
+                                  to: 1.15; duration: 260
+                                  easing.type: Easing.OutBack; easing.overshoot: 2.6 }
+            }
+            PauseAnimation { duration: 520 }
+            ParallelAnimation {
+                NumberAnimation { target: cartelCapa; property: "opacity"
+                                  to: 0; duration: 420 }
+                NumberAnimation { target: cartelCapa; property: "scale"
+                                  to: 1.6; duration: 420 }
+            }
+        }
     }
 
     //  El aviso de logro: arriba del todo, unos segundos, sin parar nada.
@@ -589,7 +730,7 @@ K4.Aparicion {
         K4.Etiqueta {
             anchors.horizontalCenter: parent.horizontalCenter
             text: vista.sim.pausada
-                ? K4.Idioma.t("cualquier tecla para seguir · ESC para salir")
+                ? K4.Idioma.t("TAB sella la de abajo · cualquier tecla para seguir · ESC para salir")
                 : K4.Idioma.t("← → o 1-4 para elegir · Enter para empezar")
             color: K4.Tema.tenue
             font.pixelSize: 11

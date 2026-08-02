@@ -34,8 +34,8 @@ escaparse en vez de por la corta cómoda es una decisión de verdad — de las q
 se toman con los dedos y no en un menú. Llegas al objetivo y bajas de capa sin
 que nada pare; lo que te sobre de reloj se convierte en puntos.
 
-Se pierde de dos maneras: cinco fugas abren la grieta del todo, o se acaba el
-tiempo.
+Dejar escapar una palabra **cuesta cinco segundos** y abre la grieta. Se
+pierde de dos maneras: cinco fugas la abren del todo, o se acaba el tiempo.
 
 **Cada tres capas hay un guardián**, y ahí la capa no se pasa por puntos: se
 pasa por él.

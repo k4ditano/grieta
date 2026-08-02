@@ -298,6 +298,10 @@ QtObject {
     signal escapada(int pid)
     signal capaCerrada(int capa)
     signal sobroTiempo(int puntos)
+    //  Lo que ganas y lo que pierdes, para que la vista lo pueda gritar en el
+    //  sitio donde ha pasado.
+    signal ganaste(int pid, int puntos)
+    signal castigo(int segundos)
     signal fallo(string letra)
     signal limpiada(string letra)
     signal guardianLlego(string id)
@@ -708,6 +712,7 @@ QtObject {
         const ganados = valorDe(largoPalabra)
         puntos += ganados
         puntosEnCapa += ganados
+        ganaste(pid, ganados)
         combo += 1
         //  Encadenar por la última letra sellada da racha de más. Era una
         //  runa que había que comprar; ahora es del juego, porque premia
@@ -907,10 +912,23 @@ QtObject {
         combo = 0
         //  Abrir la grieta es el único daño que existe. Cinco fugas y se acabó
         //  — salvo que vayas a buscarlas, que es de lo que va esto.
+        //  Y cuesta TIEMPO, que es la moneda de esto. La grieta cuenta lo
+        //  cerca que estás del final; el reloj lo notas ya. Sin esto, dejar
+        //  escapar una palabra salía casi gratis mientras te quedaran vidas,
+        //  y lo que no cuesta no se evita.
+        const castigoSeg = 5
+        tiempoMs = Math.max(0, tiempoMs - castigoSeg * 1000)
+        castigo(castigoSeg)
+        if (tiempoMs <= 0) {
+            _seAcaboElTiempo()
+            return
+        }
+
         if (!perdonUsado) {
-            //  La primera fuga de cada capa se perdona: la palabra sale al
-            //  escritorio igual, pero no abre la grieta. Un respiro por capa
-            //  hace que una racha mala no sea una sentencia.
+            //  La primera fuga de cada capa se perdona en la GRIETA: la
+            //  palabra sale al escritorio y el reloj lo paga igual, pero no te
+            //  acerca al final. Un respiro por capa hace que una racha mala no
+            //  sea una sentencia.
             perdonUsado = true
         } else {
             fisura = Math.min(1, fisura + clase.dano * multDano)
