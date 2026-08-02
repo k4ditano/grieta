@@ -1,0 +1,18 @@
+{
+  "nota": "Procedencia y uso de los assets de La Grieta. Todo lo de aquí es original del proyecto: nada extraído de ningún juego ni de ninguna obra ajena.",
+  "grupos": {
+    "estilo": {
+      "que": "Hoja de estilo, NO assets de producción. Seis sujetos para fijar silueta, escala y paleta antes de generar nada en serie.",
+      "sujetos": ["bestia de letras rotas", "ojo entre grietas", "runa circular",
+                  "llave agrietada y humeante", "pluma con estela", "fisura luminosa"],
+      "origen": "generada con la herramienta de imágenes de Codex (imagegen) el 2 ago 2026",
+      "troceada": "tools/spritesheet.py --filas 2 --columnas 3 --lado 96",
+      "veredicto": "RECHAZADA como dirección. Ver abajo."
+    }
+  },
+  "aprendido": [
+    "El encargo pedía «tinta luminosa sobre negro» y eso es exactamente lo que falla: el cuerpo de los sujetos es negro y la isla también, así que sobre el fondo real la silueta desaparece y a 48 px quedan manchas. La lectura tiene que venir del RELLENO, no del contorno.",
+    "La cuantización a 24 colores se come los resplandores suaves: lo que sobrevive son las formas planas y los bordes duros.",
+    "Para la tanda de producción: cuerpo relleno en un color claro con los detalles en oscuro —el negativo de esto—, y comprobar cada hoja a 48 px sobre negro ANTES de generar la siguiente."
+  ]
+}
