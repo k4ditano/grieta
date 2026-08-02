@@ -32,6 +32,9 @@ K4.Aparicion {
 
     property string ultimaTecla: ""
 
+    readonly property var clases: sim.circulos.lista
+    property int elegida: 0
+
     // ── el teclado de verdad ──────────────────────────────────────
     //
     //  Con `grabKeyboard` la capa recibe TODAS las teclas mientras está
@@ -71,10 +74,33 @@ K4.Aparicion {
                 return
             }
 
+            //  El Tab limpia una tecla rota. Es la única tecla del teclado que
+            //  no forma parte de ninguna palabra, así que puede tener una
+            //  función sin robársela a nadie — y se alcanza con el meñique sin
+            //  soltar la postura, que en un juego de tecleo importa.
+            if (ev.key === Qt.Key_Tab || ev.key === Qt.Key_Backtab) {
+                if (vista.sim.jugando && !vista.sim.pausada)
+                    vista.sim.limpiar()
+                ev.accepted = true
+                return
+            }
+
             if (!vista.sim.jugando) {
-                if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter
+                //  El elegir clase: flechas o 1-4 para moverse, Enter empieza.
+                if (ev.key === Qt.Key_Left || ev.key === Qt.Key_Up) {
+                    vista.elegida = (vista.elegida + vista.clases.length - 1)
+                        % vista.clases.length
+                    ev.accepted = true
+                } else if (ev.key === Qt.Key_Right || ev.key === Qt.Key_Down) {
+                    vista.elegida = (vista.elegida + 1) % vista.clases.length
+                    ev.accepted = true
+                } else if (ev.key >= Qt.Key_1
+                           && ev.key < Qt.Key_1 + vista.clases.length) {
+                    vista.elegida = ev.key - Qt.Key_1
+                    ev.accepted = true
+                } else if (ev.key === Qt.Key_Return || ev.key === Qt.Key_Enter
                         || ev.key === Qt.Key_Space) {
-                    vista.plugin.empezar()
+                    vista.plugin.empezar(vista.clases[vista.elegida].id)
                     ev.accepted = true
                 }
                 return
@@ -265,6 +291,24 @@ K4.Aparicion {
             font.pixelSize: 11
             font.weight: Font.DemiBold
         }
+
+        //  La tinta, y el aviso de para qué sirve solo cuando hace falta: con
+        //  el teclado entero no hay nada que limpiar y decírtelo sería ruido.
+        K4.Etiqueta {
+            text: K4.Idioma.t("tinta ") + vista.sim.tinta
+            color: vista.sim.tinta > 0 ? K4.Tema.azul : K4.Tema.tenue
+            font.pixelSize: 11
+            font.weight: Font.DemiBold
+        }
+
+        K4.Etiqueta {
+            visible: vista.sim.rotas > 0
+            text: vista.sim.tinta > 0
+                ? K4.Idioma.f("TAB limpia (%1 rotas)", vista.sim.rotas)
+                : K4.Idioma.f("%1 rotas · sin tinta", vista.sim.rotas)
+            color: vista.sim.tinta > 0 ? K4.Tema.apagado : K4.Tema.rojo
+            font.pixelSize: 10
+        }
     }
 
     //  El cursor de la casa, con su estela, sobre lo que estás escribiendo.
@@ -288,7 +332,7 @@ K4.Aparicion {
     // ── los carteles ──────────────────────────────────────────────
     Column {
         anchors.centerIn: parent
-        spacing: 6
+        spacing: 8
         visible: !vista.sim.jugando || vista.sim.pausada
 
         K4.Etiqueta {
@@ -309,11 +353,76 @@ K4.Aparicion {
             font.pixelSize: 12
         }
 
+        //  Elegir con qué teclado peleas. Se enseña ANTES de cada partida y
+        //  no en un menú aparte: es la decisión que define la run entera, así
+        //  que tiene que estar donde se empieza.
+        Row {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: !vista.sim.pausada
+            spacing: 8
+
+            Repeater {
+                model: vista.clases
+
+                delegate: Rectangle {
+                    id: ficha
+                    required property var modelData
+                    required property int index
+
+                    readonly property bool puesta: vista.elegida === index
+
+                    width: 156
+                    height: 92
+                    radius: 10
+                    color: puesta ? K4.Tema.superficieAlta : K4.Tema.superficie
+                    border.width: puesta ? 1 : 0
+                    border.color: K4.Tema.azul
+                    opacity: puesta ? 1 : 0.6
+
+                    Behavior on opacity { NumberAnimation { duration: 120 } }
+                    Behavior on color { ColorAnimation { duration: 120 } }
+
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 3
+                        width: parent.width - 16
+
+                        Image {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            source: Qt.resolvedUrl("assets/" + ficha.modelData.emblema)
+                            sourceSize.width: 30
+                            sourceSize.height: 30
+                            width: 30
+                            height: 30
+                            smooth: true
+                        }
+
+                        K4.Etiqueta {
+                            width: parent.width
+                            text: ficha.modelData.nombre
+                            font.pixelSize: 11
+                            font.weight: Font.DemiBold
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+
+                        K4.Etiqueta {
+                            width: parent.width
+                            text: K4.Idioma.t(ficha.modelData.desc)
+                            color: K4.Tema.apagado
+                            font.pixelSize: 9
+                            wrapMode: Text.WordWrap
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+                    }
+                }
+            }
+        }
+
         K4.Etiqueta {
             anchors.horizontalCenter: parent.horizontalCenter
             text: vista.sim.pausada
                 ? K4.Idioma.t("cualquier tecla para seguir · ESC para salir")
-                : K4.Idioma.t("Enter para empezar")
+                : K4.Idioma.t("← → o 1-4 para elegir · Enter para empezar")
             color: K4.Tema.tenue
             font.pixelSize: 11
         }

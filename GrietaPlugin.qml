@@ -71,8 +71,8 @@ K4.Plugin {
         K4.Isla.soltar("grieta")
     }
 
-    function empezar() {
-        sim.empezar()
+    function empezar(claseId) {
+        sim.empezar(claseId)
     }
 
     // ── el ambiente ───────────────────────────────────────────────

@@ -14,12 +14,23 @@ import QtQuick
 QtObject {
     id: vocabulario
 
+    //  Hay más de las que parecen necesarias a propósito: un círculo que
+    //  recorta letras se queda sin material enseguida, y una clase con cuatro
+    //  palabras no es una clase, es un error. Medido: con la lista corta, «El
+    //  Vocalista» solo alcanzaba 21 palabras de 40.
     readonly property var cortas: [
         "casa", "mesa", "luna", "sopa", "pino", "nube", "tren", "gato",
         "mano", "pelo", "rama", "sal", "mar", "pan", "sol", "río",
         "dedo", "seta", "ala", "cama", "rana", "loro", "duna", "cola",
         "nido", "muro", "polo", "tela", "cera", "lima", "pato", "coro",
-        "mora", "ruta", "tapa", "nota", "silla", "punta", "carta", "manta"
+        "mora", "ruta", "tapa", "nota", "silla", "punta", "carta", "manta",
+        "sala", "mula", "tina", "lata", "nata", "rata", "cana", "raso",
+        "mote", "sota", "tono", "malo", "sano", "lento", "salto", "canto",
+        "manto", "santo", "tanto", "suelo", "cielo", "molino", "camino",
+        "marino", "cortina", "colina", "cadena", "cintura", "sirena",
+        "arena", "aroma", "isla", "olmo", "lodo", "nudo", "mudo", "codo",
+        "todo", "modo", "solo", "muela", "estela", "aldea", "mantel",
+        "coral", "cauce", "trono", "surco", "traste", "ronda", "tarde"
     ]
 
     readonly property var medias: [

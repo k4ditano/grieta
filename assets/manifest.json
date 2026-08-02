@@ -28,7 +28,8 @@
       "hoja": "2x4", "lado": 48, "cuantos": 8,
       "sujetos": ["vocalista", "zurda", "escriba", "tartamudo",
                   "fragua", "mercado", "nido", "eco"],
-      "ojo": "las cuatro primeras son clases; las cuatro últimas, salas de la ruta"
+      "ojo": "las cuatro primeras se generaron como clases; las cuatro últimas son salas de la ruta",
+      "s01-sin-usar": "la mano en el anillo se generó para «La Zurda», una clase que hubo que descartar: en castellano la mitad izquierda del teclado no tiene ni o ni i ni u y dejaba 4 palabras de 40. La sustituye «La Ceniza», que presta el emblema de ceniza de la hoja de runas. El sprite se conserva por si aparece una clase a la que le pegue."
     },
     "estilo": {
       "que": "hoja de estudio, NO assets de producción",

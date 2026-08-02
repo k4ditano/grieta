@@ -25,14 +25,16 @@ QtObject {
     id: sim
 
     property Vocabulario vocabulario: Vocabulario {}
+    property Circulos circulos: Circulos {}
 
     // ── el círculo ────────────────────────────────────────────────
     //
-    //  Las teclas despiertas. En la fase 1 es fijo; en la 4 será la clase que
-    //  elijas y lo que crece al bajar de capa. Se queda generoso a propósito:
-    //  con pocas letras el vocabulario se queda en cuatro palabras y no se ve
-    //  si el juego funciona, que es para lo que existe esta fase.
-    readonly property string circulo: "aeioustrnlmdcpbg"
+    //  Tu personaje es tu teclado: la clase decide qué letras tienes, cuánto
+    //  te cuesta una fuga, a qué ritmo brota y si hay que teclear cada letra
+    //  dos veces.
+    property string claseId: "vocalista"
+    readonly property var clase: circulos.porId(claseId)
+    readonly property string circulo: clase.letras
 
     // ── estado de la partida ──────────────────────────────────────
     property bool jugando: false
@@ -73,14 +75,30 @@ QtObject {
     //  onda barre la pantalla. Lo levanta y lo baja la vista.
     property bool lento: false
 
-    //  { letra: instante en que se cura }
+    // ── la tinta ──────────────────────────────────────────────────
+    //
+    //  Lo que limpia una tecla rota, y lo único que las limpia: en la fase 1
+    //  la corrupción se curaba sola con el tiempo, y eso convertía un fallo
+    //  en un susto. Ahora una tecla rota se queda rota hasta que pagues, así
+    //  que un error tuyo es una herida que arrastras el resto de la partida.
+    //
+    //  Se gana sellando —una cada tres— y cazando lo que se te escapó, que
+    //  vale por una entera. Eso ata las tres cosas: fallas, te rompes, y para
+    //  arreglarte tienes que ir a por lo que dejaste escapar.
+    property int tinta: 0
+    readonly property int selladasPorTinta: 3
+    property int _haciaTinta: 0
+
+    //  { letra: orden en que se rompió }, para poder limpiar la más vieja.
     property var corruptas: ({})
+    property int _ordenRotura: 0
 
     signal sellada(int pid)
     signal selladaEnFuga(int pid)
     signal escapada(int pid)
     signal capaCerrada(int capa)
     signal fallo(string letra)
+    signal limpiada(string letra)
     signal muerte()
 
     // ── el ritmo ──────────────────────────────────────────────────
@@ -88,25 +106,44 @@ QtObject {
     //  Cada capa acorta la espera y alarga las palabras. Los números salen de
     //  querer que una partida de fase 1 dure sobre un minuto: lo justo para
     //  ver si esto se siente bien.
-    readonly property int esperaMs: Math.max(1100, 2600 - capa * 220)
+    readonly property int esperaMs: Math.round(
+        Math.max(1100, 2600 - capa * 220) * clase.ritmo)
     //  En sobrecarga cae todo un tercio más rápido: la recompensa por ir fino
     //  tiene que dar miedo, o no es una recompensa, es un regalo.
     readonly property int caidaMs: Math.round(
         Math.max(4200, 9000 - capa * 600) * (sobrecarga ? 0.68 : 1))
 
-    function empezar() {
+    function empezar(id) {
+        if (id !== undefined && id.length > 0)
+            claseId = id
+
         palabras.clear()
         fugadas.clear()
         objetivo = -1
         corruptas = ({})
+        _ordenRotura = 0
         fisura = 0
         capa = 1
         selladas = 0
         combo = 0
         mejorCombo = 0
         fallos = 0
+        tinta = clase.tinta
+        _haciaTinta = 0
         pausada = false
         jugando = true
+
+        //  La Ceniza empieza con teclas ya rotas. Se sortean de su círculo,
+        //  así que cada partida suya duele en otro sitio.
+        const rotas = {}
+        const bolsa = circulo.split("")
+        for (let i = 0; i < clase.rotasAlNacer && bolsa.length; ++i) {
+            const j = Math.floor(Math.random() * bolsa.length)
+            rotas[bolsa[j]] = ++_ordenRotura
+            bolsa.splice(j, 1)
+        }
+        corruptas = rotas
+
         brotar()
     }
 
@@ -172,8 +209,19 @@ QtObject {
         //  es que la palabra deja de leerse sola — hay que MIRARLA. A partir
         //  de la segunda capa.
         const tipo = (capa >= 2 && Math.random() < 0.25) ? "espejo" : "llana"
-        const muestra = tipo === "espejo"
+        let muestra = tipo === "espejo"
             ? texto.split("").reverse().join("") : texto
+
+        //  El Tartamudo ve —y teclea— cada letra dos veces. Se dobla la
+        //  MUESTRA y no solo lo esperado: si vieras «casa» y hubiera que
+        //  escribir «ccaassaa» sería una trampa, no una clase. Doblado a la
+        //  vista, se lee como un tartamudeo y se entiende sin explicarlo.
+        if (clase.tartamudo) {
+            let doble = ""
+            for (let k = 0; k < muestra.length; ++k)
+                doble += muestra[k] + muestra[k]
+            muestra = doble
+        }
 
         let esperado = ""
         for (let i = 0; i < muestra.length; ++i)
@@ -224,24 +272,44 @@ QtObject {
         //  Reasignar el MISMO objeto a una propiedad `var` no notifica: hay
         //  que copiar para que el teclado dibujado se entere.
         const d = Object.assign({}, corruptas)
-        //  Ocho segundos. En la fase 4 no se curará sola: se limpiará con
-        //  tinta, y decidir en qué gastarla será media partida.
-        d[letra] = Date.now() + 8000
+        d[letra] = ++_ordenRotura
         corruptas = d
     }
 
-    function _curar() {
-        const ahora = Date.now()
-        let cambio = false
-        const d = {}
-        for (const letra in corruptas) {
-            if (corruptas[letra] > ahora)
-                d[letra] = corruptas[letra]
-            else
-                cambio = true
+    readonly property int rotas: {
+        let n = 0
+        for (const l in corruptas)
+            ++n
+        return n
+    }
+
+    //  Limpia la tecla que lleva más tiempo rota. Se elige sola a propósito:
+    //  con la lista entera para escoger, esto se convertía en un menú a media
+    //  partida, y aquí no se para el tiempo. La más vieja es casi siempre la
+    //  que más te ha estorbado ya.
+    function limpiar() {
+        if (tinta <= 0)
+            return false
+
+        let vieja = ""
+        let mejor = Infinity
+        for (const l in corruptas) {
+            if (corruptas[l] < mejor) {
+                mejor = corruptas[l]
+                vieja = l
+            }
         }
-        if (cambio)
-            corruptas = d
+        if (!vieja.length)
+            return false
+
+        const d = {}
+        for (const l in corruptas)
+            if (l !== vieja)
+                d[l] = corruptas[l]
+        corruptas = d
+        tinta -= 1
+        limpiada(vieja)
+        return true
     }
 
     //  Una tecla. Devuelve `true` si ha servido para algo.
@@ -336,11 +404,21 @@ QtObject {
             mejorCombo = combo
 
         if (enFuga) {
-            //  Cazar lo que se te escapó es la única cura que hay.
+            //  Cazar lo que se te escapó cierra grieta Y da tinta entera: es
+            //  lo que convierte una fuga en una deuda que merece la pena ir a
+            //  pagar en vez de en un castigo y ya está.
             fisura = Math.max(0, fisura - 0.1)
+            tinta += 1
             selladaEnFuga(pid)
         } else {
             sellada(pid)
+        }
+
+        //  Y la tinta que se gana sellando, a cuentagotas.
+        _haciaTinta += 1
+        if (_haciaTinta >= selladasPorTinta) {
+            _haciaTinta = 0
+            tinta += 1
         }
 
         //  Cada cinco selladas se cierra una capa. Sin ruta todavía: eso es la
@@ -390,7 +468,7 @@ QtObject {
         combo = 0
         //  Abrir la grieta es el único daño que existe. Cinco fugas y se acabó
         //  — salvo que vayas a buscarlas, que es de lo que va esto.
-        fisura = Math.min(1, fisura + 0.2)
+        fisura = Math.min(1, fisura + clase.dano)
         escapada(pid)
         d.modelo.remove(d.i)
         if (objetivo === pid)
@@ -413,10 +491,8 @@ QtObject {
         onTriggered: sim.brotar()
     }
 
-    property Timer _cura: Timer {
-        interval: 500
-        repeat: true
-        running: sim.jugando && !sim.pausada
-        onTriggered: sim._curar()
-    }
+    //  Aquí vivía el timer que curaba las teclas solas. Se ha ido: ahora una
+    //  tecla rota se queda rota hasta que gastes tinta, que es lo que hace que
+    //  un fallo pese durante el resto de la partida en vez de durante ocho
+    //  segundos.
 }
