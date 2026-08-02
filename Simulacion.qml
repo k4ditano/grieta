@@ -28,6 +28,38 @@ QtObject {
     property Circulos circulos: Circulos {}
     property Runas catalogoRunas: Runas {}
     property Salas catalogoSalas: Salas {}
+    property Guardianes catalogoGuardianes: Guardianes {}
+
+    // ── el némesis ────────────────────────────────────────────────
+    //
+    //  La PRIMERA palabra que se te escapa en una partida se te queda
+    //  pegada: vuelve al cerrar cada capa, y cada vez viene repetida una vez
+    //  más —«duna», «dunaduna», «dunadunaduna»— hasta que la selles. No es
+    //  una mecánica de daño: es para que salgas de la partida contando que
+    //  moriste a manos de «murciélago», que es lo que la gente cuenta de un
+    //  roguelike.
+    property string nemesis: ""
+    property int nemesisFuerza: 1
+    property bool nemesisFuera: false
+
+    // ── los guardianes ────────────────────────────────────────────
+    //
+    //  Cada tres capas. Mientras está delante cambia una regla del teclado,
+    //  y se va cuando le sellas sus palabras.
+    property string guardian: ""
+    property int guardianVida: 0
+    //  A qué capa toca el siguiente. Es un umbral y no un `capa % 3`, y la
+    //  diferencia no es de estilo: con la Sala del Eco cada sellada cuenta
+    //  DOBLE, así que se puede saltar de la capa 2 a la 4 y la 3 no llega a
+    //  existir. Preguntando por la igualdad exacta, ese guardián no aparecía
+    //  nunca y no había forma de saber por qué.
+    property int proximoGuardian: 3
+    property var guardianesVistos: []
+    //  El de Dos Caras: { tecla que pulsas: letra que sale }.
+    property var permuta: ({})
+
+    readonly property var guardianActual:
+        guardian.length ? catalogoGuardianes.porId(guardian) : null
 
     // ── lo que llevas ─────────────────────────────────────────────
     property var runas: []
@@ -40,8 +72,10 @@ QtObject {
     readonly property real multDano: (tiene("yunque") ? 0.6 : 1)
     readonly property real multCaida: (tiene("aliento") ? 1.15 : 1)
                                     * (salaActiva === "nido" ? 0.75 : 1)
+                                    * (guardian === "ojo" ? 0.65 : 1)
     readonly property real multEspera: (tiene("faro") ? 1.15 : 1)
                                      * (salaActiva === "eco" ? 0.7 : 1)
+                                     * (guardian === "dosbocas" ? 0.5 : 1)
     readonly property int porTinta: tiene("tintero") ? 2 : 3
     readonly property bool rotasEscriben: tiene("ceniza")
     readonly property bool sinEspejos: tiene("mordaza")
@@ -141,6 +175,8 @@ QtObject {
     signal capaCerrada(int capa)
     signal fallo(string letra)
     signal limpiada(string letra)
+    signal guardianLlego(string id)
+    signal guardianCaido(string id)
     signal muerte()
 
     // ── el ritmo ──────────────────────────────────────────────────
@@ -177,6 +213,14 @@ QtObject {
         salaActiva = ""
         perdonUsado = false
         ultimaSellada = ""
+        nemesis = ""
+        nemesisFuerza = 1
+        nemesisFuera = false
+        guardian = ""
+        guardianVida = 0
+        guardianesVistos = []
+        proximoGuardian = 3
+        permuta = ({})
         enRuta = false
         pasoRuta = ""
         ofertaSalas = []
@@ -222,12 +266,19 @@ QtObject {
         //  Las primeras capas son cortas; a partir de la tercera entran las
         //  medias, y las largas asoman al final. Se mezcla en vez de saltar de
         //  golpe para que el salto de dificultad no se note como un muro.
+        //  La Bestia solo trae palabras largas: es su regla entera.
         let fuente = v.cortas
-        if (capa >= 5)
+        if (guardian === "bestia")
+            fuente = v.largas.concat(v.medias)
+        else if (capa >= 5)
             fuente = v.cortas.concat(v.medias, v.largas)
         else if (capa >= 3)
             fuente = v.cortas.concat(v.medias)
-        return v.deCirculo(fuente, circulo)
+
+        const filtrada = v.deCirculo(fuente, circulo)
+        //  Un círculo estrecho puede no tener ni una palabra larga. Antes que
+        //  dejar la capa vacía, se cae a lo que haya.
+        return filtrada.length ? filtrada : v.deCirculo(v.cortas, circulo)
     }
 
     //  Un carril libre. Se sortean unos cuantos y gana el que más lejos quede
@@ -262,8 +313,11 @@ QtObject {
         //  El espejo: se enseña del revés y se teclea tal como se ve. El reto
         //  es que la palabra deja de leerse sola — hay que MIRARLA. A partir
         //  de la segunda capa.
-        const tipo = (!sinEspejos && capa >= 2 && Math.random() < 0.25)
-            ? "espejo" : "llana"
+        //  El Escriba Ciego lo pone TODO del revés; la Mordaza quita los
+        //  espejos… salvo delante de él, que para eso es un guardián.
+        const tipo = guardian === "ciego" ? "espejo"
+            : (!sinEspejos && capa >= 2 && Math.random() < 0.25)
+                ? "espejo" : "llana"
         let muestra = tipo === "espejo"
             ? texto.split("").reverse().join("") : texto
 
@@ -372,7 +426,14 @@ QtObject {
         if (!jugando || pausada || !bruta.length)
             return false
 
-        const letra = vocabulario.llana(bruta.toLowerCase())
+        let letra = vocabulario.llana(bruta.toLowerCase())
+
+        //  El de Dos Caras se mete AQUÍ, en la puerta: pulsas una tecla y
+        //  sale otra. Va antes que nada para que todo lo demás —el objetivo,
+        //  la corrupción, el teclado dibujado— vea ya la letra cambiada y no
+        //  haya que acordarse de la permuta en cinco sitios.
+        if (permuta[letra] !== undefined)
+            letra = permuta[letra]
 
         //  Una tecla corrompida no hace NADA. Ni acierta ni falla: está rota,
         //  y notarlo en los dedos es el castigo. Con la runa Ceniza vuelve a
@@ -409,7 +470,17 @@ QtObject {
                         _sellar(pid, d.enFuga)
                     return true
                 }
+                //  Fallar SUELTA la palabra. Se descubrió jugando y era el
+                //  peor fallo que ha tenido esto: al errar una letra el
+                //  objetivo se quedaba enganchado, así que todo lo que
+                //  tecleabas después iba contra una palabra que ya no querías
+                //  y cada tecla se rompía a su vez. Dos palabras mal escritas
+                //  dejaban seis teclas muertas y no había forma de entender
+                //  por qué. Ahora un error te devuelve la libertad: la
+                //  siguiente letra vuelve a elegir.
                 _errar(letra)
+                modelo.setProperty(i, "escrito", Math.min(arranque, largo - 1))
+                objetivo = -1
                 return false
             }
         }
@@ -462,6 +533,7 @@ QtObject {
         const d = _buscar(pid)
         const largoPalabra = d ? d.modelo.get(d.i).esperado.length : 0
         const inicial = d ? d.modelo.get(d.i).esperado[0] : ""
+        const esNemesis = d ? d.modelo.get(d.i).tipo === "nemesis" : false
 
         selladas += (sobrecarga ? 2 : 1) * valorSellada
         combo += 1
@@ -488,6 +560,30 @@ QtObject {
             selladaEnFuga(pid)
         } else {
             sellada(pid)
+        }
+
+        //  El némesis: sellarlo cierra grieta de verdad y lo quita de en
+        //  medio para siempre. Es la recompensa por haber ido a por él en vez
+        //  de por lo fácil.
+        if (esNemesis) {
+            nemesis = ""
+            nemesisFuera = false
+            nemesisFuerza = 1
+            fisura = Math.max(0, fisura - 0.25)
+            tinta += 2
+        }
+
+        //  Y al guardián se le sella lo suyo hasta que se va.
+        if (guardian.length && guardianVida > 0) {
+            guardianVida -= 1
+            if (guardianVida <= 0) {
+                const caido = guardian
+                guardian = ""
+                permuta = ({})
+                tinta += 3
+                fisura = Math.max(0, fisura - 0.1)
+                guardianCaido(caido)
+            }
         }
 
         //  Y la tinta que se gana sellando, a cuentagotas.
@@ -543,6 +639,15 @@ QtObject {
             esperado: p.esperado, tipo: p.tipo, escrito: 0
         }
 
+        //  El primero que se escapa se te queda pegado para el resto de la
+        //  partida. Y si el que se escapa ES el némesis, vuelve más largo.
+        if (p.tipo === "nemesis") {
+            nemesisFuera = false
+            nemesisFuerza += 1
+        } else if (!nemesis.length) {
+            nemesis = p.texto
+        }
+
         combo = 0
         //  Abrir la grieta es el único daño que existe. Cinco fugas y se acabó
         //  — salvo que vayas a buscarlas, que es de lo que va esto.
@@ -557,7 +662,11 @@ QtObject {
         d.modelo.remove(d.i)
         if (objetivo === pid)
             objetivo = -1
-        fugadas.append(suelta)
+        //  El némesis NO se va al escritorio: vuelve por la grieta en la capa
+        //  siguiente y más largo. Si hiciera las dos cosas habría dos bichos
+        //  con el mismo nombre y dejaría de entenderse cuál es cuál.
+        if (p.tipo !== "nemesis")
+            fugadas.append(suelta)
 
         if (fisura >= 1) {
             jugando = false
@@ -658,12 +767,68 @@ QtObject {
         _cerrarRuta()
     }
 
+    //  El némesis, repetido una vez más de las que ya te ha visitado.
+    function _soltarNemesis() {
+        if (!nemesis.length || nemesisFuera)
+            return
+
+        let muestra = ""
+        for (let i = 0; i < nemesisFuerza; ++i)
+            muestra += nemesis
+
+        let esperado = ""
+        for (let j = 0; j < muestra.length; ++j)
+            esperado += vocabulario.llana(muestra[j].toLowerCase())
+
+        nemesisFuera = true
+        palabras.append({
+            pid: _siguienteId++, texto: nemesis, muestra: muestra,
+            esperado: esperado, tipo: "nemesis", escrito: 0,
+            carril: _carrilLibre()
+        })
+    }
+
+    function _invocarGuardian() {
+        const g = catalogoGuardianes.alAzar(guardianesVistos)
+        guardian = g.id
+        guardianVida = g.vida
+        guardianesVistos = guardianesVistos.concat([g.id])
+
+        //  El de Dos Caras te cambia dos teclas de sitio. Se sortean de tu
+        //  círculo y de las que te funcionan: cambiarte una rota no se
+        //  notaría, y un guardián que no se nota no es un guardián.
+        permuta = ({})
+        if (g.id === "doscaras") {
+            const sanas = []
+            for (let k = 0; k < circulo.length; ++k)
+                if (!estaCorrupta(circulo[k]))
+                    sanas.push(circulo[k])
+            if (sanas.length >= 2) {
+                const a = sanas.splice(Math.floor(Math.random() * sanas.length), 1)[0]
+                const b = sanas.splice(Math.floor(Math.random() * sanas.length), 1)[0]
+                const d = {}
+                d[a] = b
+                d[b] = a
+                permuta = d
+            }
+        }
+        guardianLlego(g.id)
+    }
+
     function _cerrarRuta() {
         ofertaSalas = []
         ofertaRunas = []
         maldita = -1
         pasoRuta = ""
         enRuta = false
+        //  Cada tres capas, uno — contando por umbral, que las capas se
+        //  saltan. Y el némesis vuelve siempre.
+        if (capa >= proximoGuardian && !guardian.length) {
+            proximoGuardian = capa + 3
+            _invocarGuardian()
+        }
+        _soltarNemesis()
+
         //  Con la capa nueva vacía, que empiece a salir algo enseguida y no
         //  al ritmo del temporizador.
         brotar()

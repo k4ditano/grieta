@@ -16,6 +16,8 @@ Item {
     property string circulo: ""
     property var corruptas: ({})
     property string ultima: ""
+    //  El Farolero lo apaga entero: se teclea a ciegas mientras esté delante.
+    property bool aOscuras: false
 
     readonly property var filas: ["qwertyuiop", "asdfghjklñ", "zxcvbnm"]
     readonly property real lado: Math.max(14, Math.min(22, width / 13))
@@ -23,6 +25,9 @@ Item {
     Column {
         anchors.centerIn: parent
         spacing: 3
+        opacity: teclado.aOscuras ? 0.06 : 1
+
+        Behavior on opacity { NumberAnimation { duration: 420 } }
 
         Repeater {
             model: teclado.filas

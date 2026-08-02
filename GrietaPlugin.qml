@@ -63,6 +63,7 @@ K4.Plugin {
         sim.parar()
         ondaViva = false
         tragando = false
+        guardianCayendo = false
         //  Y soltar lo que se le haya prestado a la barra: el tinte y el
         //  sitio de la isla. El host también barre por id al deshabilitar un
         //  plugin, pero cerrar el módulo no es deshabilitarlo — si no se
@@ -120,6 +121,21 @@ K4.Plugin {
             K4.Isla.colocar("grieta", capa % 2 === 0 ? 0.28 : 0.72, 1600)
         }
 
+        function onGuardianLlego(id) {
+            self.ultimoGuardian = self.sim.catalogoGuardianes.porId(id)
+            self.guardianCayendo = false
+            //  Llega dando un golpe: la isla lo acusa.
+            K4.Isla.efecto("grieta", "empujon", 0.9)
+        }
+
+        function onGuardianCaido(id) {
+            //  Se va con su onda, como el cierre de una capa pero suya.
+            self.guardianCayendo = true
+            self.ondaViva = true
+            self.retirada.restart()
+            K4.Isla.efecto("grieta", "sacudida", 1)
+        }
+
         function onMuerte() {
             self.apuntarMarcas()
             self.tragando = true
@@ -137,6 +153,29 @@ K4.Plugin {
     property var capaFugadas: K4.Cargador {
         active: self.abierto && (self.sim.fugadas.count > 0 || self.tragando)
         Fugadas { sim: self.sim; tragando: self.tragando }
+    }
+
+    //  El guardián asoma por encima de la barra mientras esté vivo, y se
+    //  queda un momento más mientras se desvanece al caer.
+    property bool guardianCayendo: false
+
+    property var capaGuardian: K4.Cargador {
+        active: self.abierto
+            && (self.sim.guardianActual !== null || self.guardianCayendo)
+        Guardian {
+            datos: self.sim.guardianActual !== null
+                ? self.sim.guardianActual : self.ultimoGuardian
+            vida: self.sim.guardianVida
+            vidaMaxima: self.ultimoGuardian ? self.ultimoGuardian.vida : 1
+            cayendo: self.guardianCayendo
+        }
+    }
+
+    property var ultimoGuardian: null
+
+    property Timer retirada: Timer {
+        interval: 620
+        onTriggered: self.guardianCayendo = false
     }
 
     property var capaOnda: K4.Cargador {

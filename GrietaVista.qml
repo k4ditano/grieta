@@ -283,6 +283,7 @@ K4.Aparicion {
         circulo: vista.sim.circulo
         corruptas: vista.sim.corruptas
         ultima: vista.ultimaTecla
+        aOscuras: vista.sim.guardian === "farolero"
     }
 
     // ── el marcador ───────────────────────────────────────────────

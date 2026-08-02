@@ -29,6 +29,7 @@ Item {
     readonly property string hecho: muestra.substring(0, escrito)
     readonly property string resto: muestra.substring(escrito)
     readonly property bool espejo: tipo === "espejo"
+    readonly property bool nemesis: tipo === "nemesis"
     //  El aviso de que queda poco: pasado el 75% del recorrido, late.
     readonly property bool urgente: avance > 0.75
 
@@ -51,8 +52,10 @@ Item {
         color: palabra.esObjetivo ? K4.Tema.superficieAlta : K4.Tema.superficie
         opacity: palabra.esObjetivo ? 0.97 : 0.78
 
-        border.width: palabra.esObjetivo ? 1 : 0
-        border.color: K4.Tema.azul
+        border.width: palabra.nemesis ? 2 : palabra.esObjetivo ? 1 : 0
+        //  El némesis se distingue de todo lo demás: es TU palabra, la que
+        //  dejaste escapar, y tiene que reconocerse desde la otra punta.
+        border.color: palabra.nemesis ? K4.Tema.rojo : K4.Tema.azul
 
         Behavior on color { ColorAnimation { duration: 130 } }
 
@@ -82,7 +85,8 @@ Item {
 
             K4.Etiqueta {
                 text: palabra.resto
-                color: palabra.urgente ? K4.Tema.rojo : K4.Tema.tinta
+                color: palabra.urgente ? K4.Tema.rojo
+                    : palabra.nemesis ? K4.Tema.amarillo : K4.Tema.tinta
                 font.pixelSize: 17
                 font.weight: palabra.esObjetivo ? Font.DemiBold : Font.Normal
             }
