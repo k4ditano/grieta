@@ -58,8 +58,9 @@ da racha de más. Algunas vienen **malditas**: te las llevas a cambio de que la
 grieta se abra un poco.
 
 **Seis guardianes**, cada tres capas, asomando por encima de la barra. Ninguno
-tiene «más vida y ya»: te cambian dos teclas de sitio, te apagan el teclado,
-ponen todo del revés.
+tiene «más vida y ya» y ninguno te toca el teclado: apagan media grieta para
+que leas a oscuras, ponen todo del revés, hacen que las palabras no se estén
+quietas.
 
 **Y tu némesis.** La primera palabra que se te escapa se te queda pegada y
 vuelve cada capa, repetida una vez más cada vez, hasta que la selles.

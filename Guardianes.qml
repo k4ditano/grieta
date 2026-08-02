@@ -1,10 +1,16 @@
 //  Los guardianes: los que cambian las reglas del teclado.
 //
 //  Un jefe que solo tuviera más vida sería la misma capa pero más larga. Lo
-//  que hacen estos es tocar el CONTRATO —qué sale, cómo se lee, qué tecla
-//  produce qué— así que mientras están delante juegas a otra cosa con el
-//  mismo teclado. Y se van en cuanto les sellas lo suyo: son un tramo, no un
-//  muro.
+//  que hacen estos es tocar QUÉ SALE y CÓMO SE LEE, así que mientras están
+//  delante juegas a otra cosa con los mismos dedos. Y se van en cuanto les
+//  sellas lo suyo: son un tramo, no un muro.
+//
+//  Ninguno toca tu teclado, y es a propósito. El de Dos Caras te cambiaba dos
+//  teclas de sitio y el Farolero te apagaba el teclado dibujado: lo primero
+//  era la misma familia que la corrupción de teclas —pelearse con los dedos
+//  de quien está tecleando— y lo segundo dejó de significar nada cuando el
+//  teclado dibujado dejó de contar teclas rotas. Se atacan la lectura y la
+//  vista, que es donde un juego de tecleo puede apretar sin quitarte el mando.
 //
 //  Asoman por encima de la isla, más grandes que la barra, así que sus
 //  sprites se generaron a 128 y no a 48. Es el fotograma que vende el juego.
@@ -25,10 +31,10 @@ QtObject {
           regla: "Solo salen palabras largas",
           vida: 5, emblema: "guardianes/s00.png" },
         { id: "doscaras", nombre: "El de Dos Caras",
-          regla: "Te ha cambiado dos teclas de sitio",
+          regla: "Las palabras no se están quietas: van y vienen",
           vida: 4, emblema: "guardianes/s01.png" },
         { id: "farolero", nombre: "El Farolero",
-          regla: "Ha apagado tu teclado: escribes a ciegas",
+          regla: "Ha apagado media grieta: se leen a oscuras",
           vida: 4, emblema: "guardianes/s02.png" },
         { id: "dosbocas", nombre: "La Máscara de Dos Bocas",
           regla: "Sale el doble por la grieta",

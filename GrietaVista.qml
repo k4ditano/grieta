@@ -262,7 +262,27 @@ K4.Aparicion {
 
                 //  El carril lo reparte la simulación, que es quien sabe qué
                 //  otras palabras hay: aquí solo se convierte a píxeles.
-                x: 30 + model.carril * Math.max(1, campo.width - width - 60)
+                //  El de Dos Caras: van y vienen de un carril a otro. La
+                //  posición sigue siendo suya —no se cruzan ni se solapan—
+                //  pero deja de estar quieta, y leer algo que se mueve cuesta
+                //  el doble.
+                readonly property real carrilBase:
+                    30 + model.carril * Math.max(1, campo.width - width - 60)
+
+                x: carrilBase
+
+                SequentialAnimation on x {
+                    running: vista.sim.guardian === "doscaras" && !detenida
+                    loops: Animation.Infinite
+                    NumberAnimation {
+                        to: Math.max(20, carrilBase - 150)
+                        duration: 2200; easing.type: Easing.InOutSine
+                    }
+                    NumberAnimation {
+                        to: Math.min(campo.width - width - 20, carrilBase + 150)
+                        duration: 2200; easing.type: Easing.InOutSine
+                    }
+                }
                 y: vista.salida + (vista.final - vista.salida) * avance
                     - height / 2
 
@@ -326,7 +346,22 @@ K4.Aparicion {
         y: vista.arriba ? parent.height - vista.altoTeclado : 0
         circulo: vista.sim.circulo
         ultima: vista.ultimaTecla
-        aOscuras: vista.sim.guardian === "farolero"
+
+    }
+
+    //  El Farolero apaga media grieta: una banda de sombra en mitad del
+    //  recorrido por la que las palabras pasan sin verse. No te quita el
+    //  mando —puedes escribir igual— pero tienes que acordarte de lo que
+    //  había, que es apretar por donde se puede apretar.
+    Rectangle {
+        visible: vista.sim.guardian === "farolero"
+        width: parent.width
+        height: (vista.final - vista.salida) * 0.42
+        y: vista.salida + (vista.final - vista.salida) * 0.30
+        color: "black"
+        opacity: 0.94
+
+        Behavior on opacity { NumberAnimation { duration: 500 } }
     }
 
     // ── el marcador ───────────────────────────────────────────────

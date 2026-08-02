@@ -88,9 +88,6 @@ QtObject {
     //  nunca y no había forma de saber por qué.
     property int proximoGuardian: 3
     property var guardianesVistos: []
-    //  El de Dos Caras: { tecla que pulsas: letra que sale }.
-    property var permuta: ({})
-
     readonly property var guardianActual:
         guardian.length ? catalogoGuardianes.porId(guardian) : null
 
@@ -323,8 +320,8 @@ QtObject {
         guardianVida = 0
         guardianesVistos = []
         proximoGuardian = 3
-        permuta = ({})
         enRuta = false
+        _rutaPendiente = false
         pasoRuta = ""
         ofertaSalas = []
         ofertaRunas = []
@@ -517,14 +514,7 @@ QtObject {
         if (!jugando || pausada || !bruta.length)
             return false
 
-        let letra = vocabulario.llana(bruta.toLowerCase())
-
-        //  El de Dos Caras se mete AQUÍ, en la puerta: pulsas una tecla y
-        //  sale otra. Va antes que nada para que todo lo demás —el objetivo,
-        //  la corrupción, el teclado dibujado— vea ya la letra cambiada y no
-        //  haya que acordarse de la permuta en cinco sitios.
-        if (permuta[letra] !== undefined)
-            letra = permuta[letra]
+        const letra = vocabulario.llana(bruta.toLowerCase())
 
         if (objetivo >= 0) {
             const d = _buscar(objetivo)
@@ -585,24 +575,47 @@ QtObject {
         return false
     }
 
-    //  Engancha la primera palabra que EMPIECE por esa letra. Las de la isla
-    //  mandan sobre las fugadas —lo que está cayendo es lo urgente, y una
-    //  fugada no debe robarte la letra que necesitabas para lo que tienes
-    //  encima— y dentro de cada una gana la más vieja, que es la que está más
-    //  abajo y más cerca de escaparse.
+    //  Lo que le falta a una palabra para escaparse, de 0 a 1.
+    function _loBajada(fila) {
+        return Math.min(1, (reloj - fila.nacido) / Math.max(1, fila.duracion))
+    }
+
+    //  Engancha por la letra que TOCA en cada palabra, no por su primera.
+    //
+    //  Dos arreglos de lo mismo, los dos vistos jugando:
+    //
+    //  · Se miraba `esperado[0]`, así que una palabra a medio escribir —por
+    //    la runa Filo, que la trae empezada, o por una que soltaste— no se
+    //    podía retomar tecleando la letra que tenía delante: el cursor se iba
+    //    a otra de más arriba que empezaba por ahí. Ahora se compara contra
+    //    `esperado[escrito]`, que es lo que de verdad estás mirando.
+    //  · Y entre las que valen gana la que MÁS HA BAJADO, medido de verdad y
+    //    no por el orden del modelo. El orden coincidía casi siempre, pero
+    //    «casi» no vale para la regla en la que se apoya el juego entero.
+    //
+    //  Las de la isla siguen mandando sobre las fugadas: lo que está cayendo
+    //  es lo urgente, y una fugada no debe robarte la letra que necesitabas.
     function _engancharPorLetra(letra) {
         let modelo = null
         let elegido = -1
+        let mejor = -1
+
         for (let i = 0; i < palabras.count; ++i) {
-            if (palabras.get(i).esperado[0] === letra) {
+            const f = palabras.get(i)
+            if (f.esperado[f.escrito] !== letra)
+                continue
+            const bajada = _loBajada(f)
+            if (bajada > mejor) {
+                mejor = bajada
                 modelo = palabras
                 elegido = i
-                break
             }
         }
+
         if (elegido < 0) {
             for (let j = 0; j < fugadas.count; ++j) {
-                if (fugadas.get(j).esperado[0] === letra) {
+                const g = fugadas.get(j)
+                if (g.esperado[g.escrito] === letra) {
                     modelo = fugadas
                     elegido = j
                     break
@@ -620,8 +633,11 @@ QtObject {
         const largo = p.esperado.length
         const enFuga = modelo === fugadas
         objetivo = pid
-        modelo.setProperty(elegido, "escrito", 1)
-        if (largo === 1)
+        //  Se sigue por donde iba, que es lo que el jugador ve. Ponerlo a 1
+        //  aquí tiraba el avance de una palabra que retomabas.
+        const hechas = p.escrito
+        modelo.setProperty(elegido, "escrito", hechas + 1)
+        if (hechas + 1 >= largo)
             _sellar(pid, enFuga)
         return true
     }
@@ -678,8 +694,7 @@ QtObject {
             if (guardianVida <= 0) {
                 const caido = guardian
                 guardian = ""
-                permuta = ({})
-                tinta += 3
+                        tinta += 3
                 fisura = Math.max(0, fisura - 0.1)
                 guardianCaido(caido)
             }
@@ -699,10 +714,14 @@ QtObject {
         capa = 1 + Math.floor(selladas / 5)
         if (capa > antes) {
             capaCerrada(capa)
-            _abrirRuta()
+            //  La ruta NO salta aquí. Ver `_pedirRuta`.
+            _pedirRuta()
         }
 
         _quitar(pid)
+        //  Acabas de terminar una: si la ruta estaba esperando a que
+        //  soltaras, es ahora.
+        _intentarAbrirRuta()
     }
 
     //  Cuánto puede engordar una palabra por tus fallos. Sin tope, ensañarse
@@ -772,6 +791,7 @@ QtObject {
             d.modelo.setProperty(d.i, "escrito", 0)
         combo = 0
         objetivo = -1
+        _intentarAbrirRuta()
     }
 
     //  La llama la vista cuando una palabra termina su recorrido. No se
@@ -846,6 +866,52 @@ QtObject {
     //  segundos.
 
     // ── la ruta ───────────────────────────────────────────────────
+
+    // ── cuándo se abre la ruta ────────────────────────────────────
+    //
+    //  Antes saltaba en el mismo instante en que cerrabas la capa, y eso
+    //  cortaba el juego en seco: estabas a media palabra, con tres cayendo, y
+    //  de pronto un menú. Te sacaba del ritmo, que en un juego de tecleo es
+    //  todo lo que hay.
+    //
+    //  Ahora espera dos cosas a la vez: que pase un momento —lo que dura la
+    //  onda cruzando la pantalla, que además es la celebración— y que no
+    //  estés a media palabra. Se te deja terminar lo que tenías entre manos.
+    property bool _rutaPendiente: false
+    //  Dos condiciones, y hacen falta las dos. `_rutaLista` la levanta el
+    //  temporizador; sin ella, la llamada que hay al final de `_sellar` abría
+    //  la ruta en el mismo suspiro en que se pedía y el retraso no existía.
+    property bool _rutaLista: false
+
+    function _pedirRuta() {
+        _rutaPendiente = true
+        _rutaLista = false
+        _esperaRuta.restart()
+    }
+
+    function _intentarAbrirRuta() {
+        if (!_rutaPendiente || !_rutaLista || !jugando)
+            return
+        //  A media palabra, no. Se reintenta al soltar, al sellar y en cada
+        //  vuelta del temporizador.
+        if (objetivo >= 0)
+            return
+        _rutaPendiente = false
+        _rutaLista = false
+        _abrirRuta()
+    }
+
+    property Timer _esperaRuta: Timer {
+        //  Lo que dura la onda cruzando la pantalla: el tiempo de celebrar lo
+        //  que acabas de cerrar antes de que te pregunten nada.
+        interval: 1500
+        repeat: true
+        running: sim._rutaPendiente && sim.jugando && !sim.pausada
+        onTriggered: {
+            sim._rutaLista = true
+            sim._intentarAbrirRuta()
+        }
+    }
 
     function _abrirRuta() {
         //  Lo que la sala anterior prestaba se acaba aquí: cada sala manda
@@ -955,21 +1021,6 @@ QtObject {
         guardianVida = g.vida
         guardianesVistos = guardianesVistos.concat([g.id])
 
-        //  El de Dos Caras te cambia dos teclas de sitio. Se sortean de tu
-        //  círculo y de las que te funcionan: cambiarte una rota no se
-        //  notaría, y un guardián que no se nota no es un guardián.
-        permuta = ({})
-        if (g.id === "doscaras") {
-            const sanas = circulo.split("")
-            if (sanas.length >= 2) {
-                const a = sanas.splice(Math.floor(azar() * sanas.length), 1)[0]
-                const b = sanas.splice(Math.floor(azar() * sanas.length), 1)[0]
-                const d = {}
-                d[a] = b
-                d[b] = a
-                permuta = d
-            }
-        }
         guardianLlego(g.id)
     }
 
